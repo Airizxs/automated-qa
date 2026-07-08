@@ -86,6 +86,7 @@ class AuditResult:
     cdp_vitals: CDPVitalsResult = field(default_factory=CDPVitalsResult)
     errors: list = field(default_factory=list)
     report_path: str = ""
+    dashboard_path: str = ""
 
 # ──── AUDITOR ────
 
@@ -193,6 +194,7 @@ class SEOAuditor:
                 await browser.close()
 
         r.report_path = self._generate_report(r)
+        r.dashboard_path = self._generate_dashboard(r)
         return r
 
     # ──── STATIC CHECKS ────
@@ -958,4 +960,157 @@ class SEOAuditor:
         path = os.path.join(self.report_dir, "report.html")
         with open(path, "w") as f:
             f.write(html)
+        return os.path.abspath(path)
+
+    def _generate_dashboard(self, r):
+        def _s(p): return "PASS" if p else "FAIL"
+        def _c(p): return "#22c55e" if p else "#ef4444"
+        def _score(items): return sum(1 for _, p in items if p) / max(len(items), 1) * 100
+
+        checks_all = [
+            ("Title", r.title.passed), ("Meta Description", r.meta_desc.passed),
+            ("Headings", r.headings.passed), ("Schema", r.schema.passed),
+            ("Image Alt", r.image_alt.passed), ("Responsive", r.responsive.passed),
+            ("Indexability", r.indexable.passed), ("Canonical", r.canonical.passed),
+            ("Internal Links", r.internal_links.passed),
+            ("Hero Desktop", r.hero_dt.passed), ("Hero iPad", r.hero_ip.passed),
+            ("Hero Mobile", r.hero_mo.passed), ("Fonts", r.fonts.passed),
+            ("Contact Forms", r.forms.passed),
+        ]
+        total_score = round(_score(checks_all), 1)
+        pass_count = sum(1 for _, p in checks_all if p)
+        fail_count = len(checks_all) - pass_count
+
+        grade = "A" if total_score >= 90 else "B" if total_score >= 75 else "C" if total_score >= 60 else "D" if total_score >= 40 else "F"
+        grade_color = "#22c55e" if grade == "A" else "#84cc16" if grade == "B" else "#eab308" if grade == "C" else "#f97316" if grade == "D" else "#ef4444"
+
+        # Category scores
+        static_cats = [("Title", r.title.passed), ("Meta Desc", r.meta_desc.passed), ("Headings", r.headings.passed), ("Schema", r.schema.passed), ("Image Alt", r.image_alt.passed), ("Responsive", r.responsive.passed), ("Indexability", r.indexable.passed), ("Canonical", r.canonical.passed), ("Internal Links", r.internal_links.passed)]
+        dynamic_cats = [("Hero Desktop", r.hero_dt.passed), ("Hero iPad", r.hero_ip.passed), ("Hero Mobile", r.hero_mo.passed), ("Fonts", r.fonts.passed), ("Contact Forms", r.forms.passed)]
+        cdp_cats = [("CDP Console", r.cdp_console.passed), ("CDP Network", r.cdp_network.passed), ("Web Vitals", r.cdp_vitals.passed)]
+        
+        static_score = round(_score(static_cats), 1)
+        dynamic_score = round(_score(dynamic_cats), 1)
+        cdp_score = round(_score(cdp_cats), 1)
+
+        # Build details table rows
+        details_rows = ""
+        for name, passed in checks_all:
+            icon = "✓" if passed else "✗"
+            color = "#22c55e" if passed else "#ef4444"
+            details_rows += f'<tr><td style="color:{color};font-weight:700">{icon}</td><td>{name}</td><td><span style="background:{_c(passed)};color:white;padding:2px 8px;border-radius:8px;font-size:10px">{_s(passed)}</span></td></tr>'
+
+        # Screenshots gallery
+        screenshots_html = ""
+        for label, path in [("Sticky Desktop", r.sticky_dt.screenshot), ("Sticky iPad", r.sticky_ip.screenshot), ("Sticky Mobile", r.sticky_mo.screenshot), ("Whitespace", r.whitespace.screenshot)]:
+            if path and os.path.exists(path):
+                screenshots_html += f'<div class="ss-card"><img src="{path}" loading="lazy"><span>{label}</span></div>'
+
+        dashboard = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QA Dashboard — {r.url}</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{{margin:0;padding:0;box-sizing:border-box}}
+body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}}
+.container{{max-width:1300px;margin:0 auto;padding:24px}}
+.header{{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap;gap:16px}}
+.header h1{{font-size:24px;color:#f8fafc}}
+.header .url{{font-size:12px;color:#64748b;word-break:break-all;margin-top:4px}}
+.header .badge{{font-size:13px;padding:4px 12px;border-radius:6px;font-weight:700;color:white;background:{grade_color}}}
+.grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px}}
+.card{{background:#1e293b;border-radius:12px;padding:20px;border:1px solid #334155}}
+.card h3{{font-size:13px;color:#94a3b8;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px}}
+.score-circle{{width:140px;height:140px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;background:conic-gradient({grade_color} {total_score*3.6}deg, #334155 0deg)}}
+.score-inner{{width:110px;height:110px;border-radius:50%;background:#1e293b;display:flex;flex-direction:column;align-items:center;justify-content:center}}
+.score-value{{font-size:36px;font-weight:800;color:#f8fafc}}
+.score-grade{{font-size:14px;color:#94a3b8;margin-top:2px}}
+.stats-row{{display:flex;justify-content:center;gap:24px;margin-bottom:16px}}
+.stat-item{{text-align:center}}
+.stat-num{{font-size:22px;font-weight:700}}
+.stat-label{{font-size:10px;color:#64748b;text-transform:uppercase}}
+.progress-bar{{height:6px;border-radius:3px;background:#334155;overflow:hidden;margin:8px 0}}
+.progress-fill{{height:100%;border-radius:3px;transition:width 1s ease}}
+.chart-container{{height:200px;position:relative;margin-top:8px}}
+.cat-name{{font-size:12px;color:#94a3b8;margin:12px 0 4px}}
+.cat-score{{font-size:24px;font-weight:700;color:#f8fafc}}
+table{{width:100%;border-collapse:collapse;font-size:12px}}
+td{{padding:6px 10px;border-bottom:1px solid #1e293b}}
+td:first-child{{width:28px}}
+.screenshots{{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:8px}}
+.ss-card{{background:#0f172a;border-radius:8px;overflow:hidden;border:1px solid #334155}}
+.ss-card img{{width:100%;display:block}}
+.ss-card span{{display:block;font-size:10px;color:#64748b;padding:6px 10px;text-align:center}}
+.footer{{text-align:center;color:#475569;font-size:10px;padding:20px 0;border-top:1px solid #1e293b;margin-top:24px}}
+@media(max-width:768px){{.grid{{grid-template-columns:1fr}}}}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+<div>
+  <h1>SEO + QA Dashboard</h1>
+  <div class="url">{r.url}</div>
+</div>
+<div class="badge">Grade {grade}</div>
+</div>
+
+<div class="grid">
+  <div class="card" style="text-align:center">
+    <h3>Overall Score</h3>
+    <div class="score-circle"><div class="score-inner">
+      <div class="score-value">{total_score}%</div>
+      <div class="score-grade">Grade {grade}</div>
+    </div></div>
+    <div class="stats-row">
+      <div class="stat-item"><div class="stat-num" style="color:#22c55e">{pass_count}</div><div class="stat-label">Passed</div></div>
+      <div class="stat-item"><div class="stat-num" style="color:#ef4444">{fail_count}</div><div class="stat-label">Failed</div></div>
+      <div class="stat-item"><div class="stat-num" style="color:#60a5fa">{pass_count+fail_count}</div><div class="stat-label">Total</div></div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" style="width:{total_score}%;background:{grade_color}"></div></div>
+  </div>
+
+  <div class="card">
+    <h3>Category Scores</h3>
+    <div class="cat-name">Static Checks</div>
+    <div class="cat-score">{static_score}%</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:{static_score}%;background:{'#22c55e' if static_score >= 60 else '#ef4444'}"></div></div>
+    <div class="cat-name">Dynamic Checks</div>
+    <div class="cat-score">{dynamic_score}%</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:{dynamic_score}%;background:{'#22c55e' if dynamic_score >= 60 else '#ef4444'}"></div></div>
+    <div class="cat-name">CDP & Performance</div>
+    <div class="cat-score">{cdp_score}%</div>
+    <div class="progress-bar"><div class="progress-fill" style="width:{cdp_score}%;background:{'#22c55e' if cdp_score >= 60 else '#ef4444'}"></div></div>
+  </div>
+
+  <div class="card">
+    <h3>Web Vitals</h3>
+    <div class="chart-container"><canvas id="vitalsChart"></canvas></div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h3>All Checks ({pass_count+fail_count} total)</h3>
+    <div style="max-height:400px;overflow-y:auto">
+    <table>{details_rows}</table>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Evidence Screenshots</h3>
+    {"<p style='color:#64748b;font-size:12px'>No screenshots available</p>" if not screenshots_html else f'<div class="screenshots">{screenshots_html}</div>'}
+  </div>
+</div>
+
+<div class="footer">Automated QA Tool v1.0 · Playwright + CDP · {r.url}</div>
+</div>
+<script>
+new Chart(document.getElementById('vitalsChart'),{{type:'bar',data:{{labels:['LCP','CLS','FCP','TTFB'],datasets:[{{label:'Value',data:[{r.cdp_vitals.lcp:.2f},{r.cdp_vitals.cls:.3f},{r.cdp_vitals.fcp:.2f},{r.cdp_vitals.ttfb:.2f}],backgroundColor:['#60a5fa','#34d399','#fbbf24','#f87171'],borderRadius:6,borderSkipped:false}}]}},options:{{responsive:true,plugins:{{legend:{{display:false}}}},scales:{{y:{{beginAtZero:true,grid:{{color:'#334155'}},ticks:{{color:'#94a3b8',fontSize:10}}}}}},maintainAspectRatio:false}}}});
+</script>
+</body></html>"""
+        path = os.path.join(self.report_dir, "dashboard.html")
+        with open(path, "w") as f:
+            f.write(dashboard)
         return os.path.abspath(path)

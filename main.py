@@ -45,6 +45,7 @@ def print_results(result):
     print(_line("TTFB (Time to First Byte)", result.cdp_vitals.passed, f"{result.cdp_vitals.ttfb:.2f}s"))
     print()
     print(f"  Report: {result.report_path}")
+    print(f"  Dashboard: {result.dashboard_path}")
     print()
 
 
