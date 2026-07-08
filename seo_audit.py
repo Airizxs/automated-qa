@@ -54,7 +54,13 @@ class CDPConsoleResult: errors: list = field(default_factory=list); warnings: li
 @dataclass
 class CDPNetworkResult: failed: list = field(default_factory=list); total_requests: int = 0; passed: bool = True
 @dataclass
-class CDPVitalsResult: lcp: float = 0; cls: float = 0; fcp: float = 0; ttfb: float = 0; passed: bool = True
+class CDPVitalsResult: lcp: float = 0; cls: float = 0; fcp: float = 0; ttfb: float = 0; perf_score: float = 0; passed: bool = True
+
+@dataclass
+class OGTagsResult: og_title: str = ""; og_description: str = ""; og_image: str = ""; og_url: str = ""; og_type: str = ""; og_site_name: str = ""; tags_found: int = 0; passed: bool = False
+
+@dataclass
+class SSLResult: is_https: bool = False; cert_valid: bool = False; passed: bool = False
 
 @dataclass
 class AuditResult:
@@ -84,6 +90,8 @@ class AuditResult:
     cdp_console: CDPConsoleResult = field(default_factory=CDPConsoleResult)
     cdp_network: CDPNetworkResult = field(default_factory=CDPNetworkResult)
     cdp_vitals: CDPVitalsResult = field(default_factory=CDPVitalsResult)
+    og_tags: OGTagsResult = field(default_factory=OGTagsResult)
+    ssl: SSLResult = field(default_factory=SSLResult)
     errors: list = field(default_factory=list)
     report_path: str = ""
     dashboard_path: str = ""
@@ -145,10 +153,13 @@ class SEOAuditor:
                 self._check_indexable(html, r, dt_page)
                 self._check_canonical(html, r)
                 self._check_internal_links(html, r)
+                self._check_og_tags(html, r)
+                self._check_ssl(r)
 
                 # ── CDP CHECKS (Chrome DevTools Protocol) ──
                 try: r.cdp_console, r.cdp_network, r.cdp_vitals = await self._check_cdp(browser)
                 except: pass
+                self._calc_perf_score(r.cdp_vitals)
 
                 # ── DYNAMIC CHECKS (Playwright) ──
                 r.sticky_dt = await self._check_sticky(dt_page, "Desktop")
@@ -351,6 +362,40 @@ class SEOAuditor:
                     broken.append(result)
         r.internal_links.broken = [f"✗ {url}" for url in broken]
         r.internal_links.passed = len(broken) == 0
+
+    def _check_og_tags(self, html, r):
+        import re
+        og_map = {
+            "og:title": "og_title", "og:description": "og_description",
+            "og:image": "og_image", "og:url": "og_url",
+            "og:type": "og_type", "og:site_name": "og_site_name",
+        }
+        for prop, attr in og_map.items():
+            m = re.search(rf'<meta[^>]*property=["\']{prop}["\'][^>]*content=["\'](.*?)["\']', html, re.I)
+            if not m:
+                m = re.search(rf'<meta[^>]*content=["\'](.*?)["\'][^>]*property=["\']{prop}["\']', html, re.I)
+            if m:
+                setattr(r.og_tags, attr, m.group(1).strip())
+                r.og_tags.tags_found += 1
+        r.og_tags.passed = bool(r.og_tags.og_title and r.og_tags.og_description)
+
+    def _check_ssl(self, r):
+        r.ssl.is_https = self.url.startswith("https://")
+        if r.ssl.is_https:
+            try: requests.get(self.url, timeout=5, verify=True); r.ssl.cert_valid = True
+            except: pass
+        r.ssl.passed = r.ssl.is_https and r.ssl.cert_valid
+
+    def _calc_perf_score(self, vitals):
+        score = 100
+        if vitals.lcp > 4.0: score -= 25
+        elif vitals.lcp > 2.5: score -= 10
+        if vitals.cls > 0.25: score -= 25
+        elif vitals.cls > 0.1: score -= 10
+        if vitals.ttfb > 0.8: score -= 10
+        elif vitals.ttfb > 0.5: score -= 5
+        vitals.perf_score = max(0, score)
+        vitals.passed = score >= 70
 
     # ──── CDP CHECKS (Chrome DevTools Protocol) ────
 
@@ -881,6 +926,8 @@ class SEOAuditor:
         static_cards += card("Indexability", r.indexable.passed, [f"Indexable: {r.indexable.indexable}", f"Robots: {r.indexable.meta_robots or 'none'}"])
         static_cards += card("Canonical Tag", r.canonical.passed, [f"href: {r.canonical.href or 'Not found'}", f"Matches URL: {r.canonical.matches}"])
         static_cards += card("Internal Links", r.internal_links.passed, [f"Total: {r.internal_links.total} | Broken: {len(r.internal_links.broken)}"] + [f"✗ {b}" for b in r.internal_links.broken])
+        static_cards += card("OG Tags", r.og_tags.passed, [f"Tags found: {r.og_tags.tags_found}/6", f"Title: {r.og_tags.og_title[:60] or '—'}", f"Description: {r.og_tags.og_description[:60] or '—'}", f"Image: {r.og_tags.og_image[:60] or '—'}"])
+        static_cards += card("SSL/HTTPS", r.ssl.passed, [f"HTTPS: {r.ssl.is_https}", f"Certificate valid: {r.ssl.cert_valid}"])
 
         # ── DYNAMIC CHECKS ──
         dynamic_cards = ""
@@ -941,7 +988,8 @@ class SEOAuditor:
     {"".join(f'<div class="stat" style="border-top:3px solid {_c(p)}"><div class="num" style="color:{_c(p)}">{_i(p)}</div><div class="label">{n}</div></div>' for n, p in [
         ("Title", r.title.passed), ("Meta", r.meta_desc.passed), ("Headings", r.headings.passed),
         ("Schema", r.schema.passed), ("Image Alt", r.image_alt.passed), ("Responsive", r.responsive.passed),
-        ("Index", r.indexable.passed), ("Canonical", r.canonical.passed),
+            ("Index", r.indexable.passed), ("Canonical", r.canonical.passed),
+            ("OG Tags", r.og_tags.passed), ("SSL", r.ssl.passed),
             ("Hero", r.hero_dt.passed),
         ("Images", True), ("Fonts", r.fonts.passed), ("Forms", r.forms.passed),
         ("CDP", r.cdp_console.passed), ("Vitals", r.cdp_vitals.passed),
