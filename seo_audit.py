@@ -2,6 +2,7 @@ import json
 import os
 import asyncio
 import requests
+from datetime import datetime
 from dataclasses import dataclass, field
 from urllib.parse import urlparse, urljoin
 from playwright.async_api import async_playwright
@@ -536,6 +537,14 @@ class SEOAuditor:
         await page.evaluate("window.scrollTo(0, 0)")
         await page.wait_for_timeout(500)
 
+        # Take evidence screenshot at the TOP so the menu is always visible
+        ss = os.path.join(self.report_dir, f"sticky_{vp_name.lower()}.png")
+        try:
+            await page.screenshot(path=ss, full_page=False, timeout=5000)
+            r.screenshot = ss
+        except Exception as e:
+            r.issues.append(f"Screenshot failed: {e}")
+
         # Find header and record position BEFORE scroll
         header_info = await page.evaluate("""
             () => {
@@ -635,11 +644,6 @@ class SEOAuditor:
             r.issues.append("Header scrolled out of view — no sticky detected")
 
         r.passed = r.has_sticky and r.visible_scrolled
-
-        ss = os.path.join(self.report_dir, f"sticky_{vp_name.lower()}.png")
-        try: await page.screenshot(path=ss, full_page=False, timeout=5000)
-        except: pass
-        r.screenshot = ss
         return r
 
     async def _check_featured_image(self, page):
@@ -902,7 +906,7 @@ class SEOAuditor:
                 f'<div class="{"issue" if "✗" in i else "ok"}">{i}</div>'
                 for i in (items if items else ["✓ All good"])
             )
-            ss = f'<img src="{screenshot}" loading="lazy" class="screenshot">' if screenshot and os.path.exists(screenshot) else ""
+            ss = f'<img src="{os.path.basename(screenshot)}" loading="lazy" class="screenshot">' if screenshot and os.path.exists(screenshot) else ""
             return f'''<div class="check-item">
               <div class="check-header">
                 <span class="check-title">{title}</span>
@@ -1005,10 +1009,13 @@ class SEOAuditor:
   </div>
 </div>
 </body></html>"""
-        path = os.path.join(self.report_dir, "report.html")
+        ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        domain = urlparse(self.url).netloc.replace("www.", "")
+        filename = f"report-{domain}-{ts}.html"
+        path = os.path.join(self.report_dir, filename)
         with open(path, "w") as f:
             f.write(html)
-        return os.path.abspath(path)
+        return path
 
     def _generate_dashboard(self, r):
         def _s(p): return "PASS" if p else "FAIL"
@@ -1052,7 +1059,8 @@ class SEOAuditor:
         screenshots_html = ""
         for label, path in [("Sticky Desktop", r.sticky_dt.screenshot), ("Sticky iPad", r.sticky_ip.screenshot), ("Sticky Mobile", r.sticky_mo.screenshot), ("Whitespace", r.whitespace.screenshot)]:
             if path and os.path.exists(path):
-                screenshots_html += f'<div class="ss-card"><img src="{path}" loading="lazy"><span>{label}</span></div>'
+                basename = os.path.basename(path)
+                screenshots_html += f'<div class="ss-card"><img src="{basename}" loading="lazy"><span>{label}</span></div>'
 
         dashboard = f"""<!DOCTYPE html>
 <html lang="en">
@@ -1158,7 +1166,10 @@ td:first-child{{width:28px}}
 new Chart(document.getElementById('vitalsChart'),{{type:'bar',data:{{labels:['LCP','CLS','FCP','TTFB'],datasets:[{{label:'Value',data:[{r.cdp_vitals.lcp:.2f},{r.cdp_vitals.cls:.3f},{r.cdp_vitals.fcp:.2f},{r.cdp_vitals.ttfb:.2f}],backgroundColor:['#60a5fa','#34d399','#fbbf24','#f87171'],borderRadius:6,borderSkipped:false}}]}},options:{{responsive:true,plugins:{{legend:{{display:false}}}},scales:{{y:{{beginAtZero:true,grid:{{color:'#334155'}},ticks:{{color:'#94a3b8',fontSize:10}}}}}},maintainAspectRatio:false}}}});
 </script>
 </body></html>"""
-        path = os.path.join(self.report_dir, "dashboard.html")
+        ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        domain = urlparse(self.url).netloc.replace("www.", "")
+        filename = f"dashboard-{domain}-{ts}.html"
+        path = os.path.join(self.report_dir, filename)
         with open(path, "w") as f:
             f.write(dashboard)
-        return os.path.abspath(path)
+        return path
