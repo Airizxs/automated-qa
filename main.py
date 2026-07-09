@@ -2,6 +2,7 @@
 import sys
 import os
 import asyncio
+from datetime import datetime
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright
 from seo_audit import SEOAuditor
@@ -49,7 +50,12 @@ def print_results(result):
     print(_line("TTFB (Time to First Byte)", result.cdp_vitals.passed, f"{result.cdp_vitals.ttfb:.2f}s"))
     print()
     abs_path = os.path.abspath(result.report_path)
-    print(f"  Report: file://{abs_path}")
+    json_abs = os.path.abspath(result.json_path)
+    print(f"  HTML: file://{abs_path}")
+    print(f"  JSON: file://{json_abs}")
+    if result.pdf_path:
+        pdf_abs = os.path.abspath(result.pdf_path)
+        print(f"  PDF:  file://{pdf_abs}")
     print()
 
 
@@ -70,6 +76,42 @@ def get_score_summary(result):
     score = round(passed / total * 100, 1)
     grade = "A" if score >= 90 else "B" if score >= 75 else "C" if score >= 60 else "D" if score >= 40 else "F"
     return {"url": r.url, "score": score, "grade": grade, "passed": passed, "total": total, "report_path": r.report_path}
+
+
+def save_history(result):
+    """Save score to history.json and show comparison with previous run."""
+    import json
+    domain = urlparse(result["url"]).netloc.replace("www.", "")
+    history_file = os.path.join(os.path.dirname(__file__), "reports", "history.json")
+
+    history = {}
+    try:
+        if os.path.exists(history_file):
+            history = json.loads(open(history_file).read())
+    except:
+        pass
+
+    entry = {
+        "timestamp": datetime.now().isoformat(),
+        "score": result["score"],
+        "grade": result["grade"],
+        "passed": result["passed"],
+        "total": result["total"],
+    }
+
+    prev = history.get(domain)
+    history[domain] = entry
+
+    with open(history_file, "w") as f:
+        json.dump(history, f, indent=2)
+
+    if prev:
+        diff = result["score"] - prev["score"]
+        arrow = "↑" if diff > 0 else "↓" if diff < 0 else "→"
+        color = "+" if diff > 0 else "" if diff == 0 else "-"
+        print(f"  Previous: {prev['score']}% ({prev['grade']}) | Now: {result['score']}% ({result['grade']}) | {arrow} {color}{abs(diff):.1f}%")
+    else:
+        print(f"  First audit for {domain}")
 
 
 def print_batch_summary(results):
@@ -114,18 +156,77 @@ def read_urls_from_file(filepath):
     return urls
 
 
-async def run_audit(url, quick=False, browser=None):
+async def run_audit(url, quick=False, browser=None, pdf=False):
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
 
     report_dir = os.path.join(os.path.dirname(__file__), "reports")
     auditor = SEOAuditor(url, report_dir=report_dir, quick=quick)
-    result = await auditor.run_all(browser=browser)
+    result = await auditor.run_all(browser=browser, generate_pdf=pdf)
+
     print_results(result)
+    summary = get_score_summary(result)
+    save_history(summary)
     return result
 
 
-async def run_batch(urls, quick=False):
+def send_email_report(recipient, html_path, json_path=None, pdf_path=None):
+    """Send audit report via email. Requires SMTP_* environment variables."""
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from email.mime.base import MIMEBase
+    from email import encoders
+
+    smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+    smtp_user = os.environ.get("SMTP_USER", "")
+    smtp_pass = os.environ.get("SMTP_PASS", "")
+    smtp_from = os.environ.get("SMTP_FROM", smtp_user)
+
+    if not smtp_user or not smtp_pass:
+        print(f"  Email skipped: set SMTP_USER and SMTP_PASS environment variables")
+        return False
+
+    msg = MIMEMultipart()
+    msg["From"] = smtp_from
+    msg["To"] = recipient
+    msg["Subject"] = f"SEO Audit Report — {recipient}"
+
+    body = f"Attached is the SEO + QA audit report.\n\nGenerated: {datetime.now().strftime('%B %d, %Y at %H:%M')}"
+    msg.attach(MIMEText(body, "plain"))
+
+    # Attach HTML report
+    if html_path and os.path.exists(html_path):
+        with open(html_path, "rb") as f:
+            part = MIMEBase("application", "octet-stream")
+            part.set_payload(f.read())
+            encoders.encode_base64(part)
+            part.add_header("Content-Disposition", f'attachment; filename="{os.path.basename(html_path)}"')
+            msg.attach(part)
+
+    # Attach PDF if exists
+    if pdf_path and os.path.exists(pdf_path):
+        with open(pdf_path, "rb") as f:
+            part = MIMEBase("application", "octet-stream")
+            part.set_payload(f.read())
+            encoders.encode_base64(part)
+            part.add_header("Content-Disposition", f'attachment; filename="{os.path.basename(pdf_path)}"')
+            msg.attach(part)
+
+    try:
+        with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_pass)
+            server.send_message(msg)
+        print(f"  Email sent to {recipient}")
+        return True
+    except Exception as e:
+        print(f"  Email failed: {e}")
+        return False
+
+
+async def run_batch(urls, quick=False, pdf=False):
     """Run audit on multiple URLs and print batch summary."""
     results_data = []
     total = len(urls)
@@ -142,7 +243,7 @@ async def run_batch(urls, quick=False):
                     continue
                 print(f"\n  [{i}/{total}]", end="")
                 try:
-                    result = await run_audit(url, quick=quick, browser=browser)
+                    result = await run_audit(url, quick=quick, browser=browser, pdf=pdf)
                     if result:
                         results_data.append(get_score_summary(result))
                 except Exception as e:
@@ -155,31 +256,40 @@ async def run_batch(urls, quick=False):
 
 
 async def main():
-    args = sys.argv[1:]
-    quick = "--quick" in args
-    args = [a for a in args if a != "--quick"]
-
+    raw = sys.argv[1:]
+    quick = False
+    pdf = False
+    email_to = None
     urls = []
 
-    # --file flag: read URLs from file
-    if "--file" in args:
-        idx = args.index("--file")
-        if idx + 1 < len(args):
-            urls = read_urls_from_file(args[idx + 1])
-            if not urls:
-                print(f"  No URLs found in file")
-                return
-        else:
-            print("  Usage: python3 main.py --file <path>")
-            return
-    elif len(args) >= 1:
-        urls = args
+    for i in range(len(raw)):
+        a = raw[i]
+        if a == "--quick":
+            quick = True
+        elif a == "--pdf":
+            pdf = True
+        elif a == "--email" and i + 1 < len(raw):
+            email_to = raw[i + 1]
+        elif a.startswith("--"):
+            continue
+        elif not (email_to and a == email_to):
+            urls.append(a)
+
+    if "--file" in raw:
+        idx = raw.index("--file")
+        if idx + 1 < len(raw):
+            urls = read_urls_from_file(raw[idx + 1])
 
     if len(urls) == 1:
-        await run_audit(urls[0], quick=quick)
+        result = await run_audit(urls[0], quick=quick, pdf=pdf)
+        if email_to and result:
+            send_email_report(email_to, result.report_path, result.json_path, result.pdf_path)
     elif len(urls) > 1:
         print(f"\n  Batch audit: {len(urls)} URLs" + (" (--quick mode)" if quick else ""))
-        await run_batch(urls, quick=quick)
+        await run_batch(urls, quick=quick, pdf=pdf)
+        # For batch, email last result only
+        if email_to:
+            print(f"  Email batch summary not yet supported for batch mode")
     else:
         # Interactive mode
         print()
@@ -205,9 +315,9 @@ async def main():
 
             if "," in url_input:
                 url_list = [u.strip() for u in url_input.split(",") if u.strip()]
-                await run_batch(url_list, quick=quick)
+                await run_batch(url_list, quick=quick, pdf=pdf)
             else:
-                await run_audit(url_input, quick=quick)
+                await run_audit(url_input, quick=quick, pdf=pdf)
 
 
 if __name__ == "__main__":

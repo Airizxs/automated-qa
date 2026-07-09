@@ -48,8 +48,44 @@ python3 main.py
 
 | Flag | Effect |
 |---|---|
-| `--quick` | Skip CDP checks, image loading scans, and internal link HTTP verification. ~2-3x faster. |
-| `--file <path>` | Read URLs from file (one per line or CSV first column) |
+| `--quick` | Skip CDP checks, image loading, and link verification. ~2-3x faster. |
+| `--pdf` | Generate PDF report alongside HTML and JSON. |
+| `--email <address>` | Send report via email (requires SMTP_* env vars). |
+| `--file <path>` | Read URLs from file (one per line or CSV first column). |
+
+### Output
+
+Each audit generates up to 3 files in `reports/`:
+
+| File | Always | With `--pdf` |
+|---|---|---|
+| `report-*.html` | Yes | Yes |
+| `report-*.json` | Yes | Yes |
+| `report-*.pdf` | — | Yes |
+
+### Email Setup
+
+```bash
+export SMTP_HOST=smtp.gmail.com
+export SMTP_PORT=587
+export SMTP_USER=your-email@gmail.com
+export SMTP_PASS="your-app-password"
+export SMTP_FROM=your-email@gmail.com
+```
+
+Then:
+
+```bash
+python3 main.py --pdf --email client@email.com example.com
+```
+
+### Historical Tracking
+
+Each run saves scores to `reports/history.json`. Subsequent audits show comparison with the previous run:
+
+```
+Previous: 92.5% (A) | Now: 94.7% (A) | ↑ +2.2%
+```
 
 ---
 

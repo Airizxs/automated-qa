@@ -95,7 +95,8 @@ class AuditResult:
     ssl: SSLResult = field(default_factory=SSLResult)
     errors: list = field(default_factory=list)
     report_path: str = ""
-    dashboard_path: str = ""
+    json_path: str = ""
+    pdf_path: str = ""
 
 # ──── AUDITOR ────
 
@@ -128,9 +129,9 @@ class SEOAuditor:
             except: pass
         return ctx, page
 
-    async def run_all(self, browser=None) -> AuditResult:
+    async def run_all(self, browser=None, generate_pdf=False) -> AuditResult:
         if browser is not None:
-            return await self._run_with_browser(browser)
+            return await self._run_with_browser(browser, generate_pdf=generate_pdf)
 
         async with async_playwright() as p:
             browser = await p.chromium.launch(
@@ -138,11 +139,11 @@ class SEOAuditor:
                 args=["--disable-blink-features=AutomationControlled", "--no-sandbox"]
             )
             try:
-                return await self._run_with_browser(browser)
+                return await self._run_with_browser(browser, generate_pdf=generate_pdf)
             finally:
                 await browser.close()
 
-    async def _run_with_browser(self, browser) -> AuditResult:
+    async def _run_with_browser(self, browser, generate_pdf=False) -> AuditResult:
         r = AuditResult(url=self.url)
         dt_ctx = ip_ctx = mo_ctx = None
         try:
@@ -187,21 +188,37 @@ class SEOAuditor:
             try: await dt_ctx.close()
             except: pass
 
-            try:
-                ip_ctx, ip_page = await self._page(browser, "iPad")
-                r.sticky_ip = await self._check_sticky(ip_page, "iPad")
-                r.hero_ip = await self._check_hero(ip_page, "iPad")
+            # Open iPad and Mobile concurrently
+            async def open_vp(name):
+                try:
+                    ctx, page = await self._page(browser, name)
+                    return ctx, page
+                except:
+                    return None, None
+
+            ip_task = asyncio.create_task(open_vp("iPad"))
+            mo_task = asyncio.create_task(open_vp("Mobile"))
+
+            ip_ctx, ip_page = await ip_task
+            mo_ctx, mo_page = await mo_task
+
+            if ip_page:
+                try:
+                    r.sticky_ip = await self._check_sticky(ip_page, "iPad")
+                    r.hero_ip = await self._check_hero(ip_page, "iPad")
+                except: pass
+            if ip_ctx:
                 try: await ip_ctx.close()
                 except: pass
-            except: pass
 
-            try:
-                mo_ctx, mo_page = await self._page(browser, "Mobile")
-                r.sticky_mo = await self._check_sticky(mo_page, "Mobile")
-                r.hero_mo = await self._check_hero(mo_page, "Mobile")
+            if mo_page:
+                try:
+                    r.sticky_mo = await self._check_sticky(mo_page, "Mobile")
+                    r.hero_mo = await self._check_hero(mo_page, "Mobile")
+                except: pass
+            if mo_ctx:
                 try: await mo_ctx.close()
                 except: pass
-            except: pass
 
         except Exception as e:
             r.errors.append(str(e))
@@ -212,6 +229,20 @@ class SEOAuditor:
                     except: pass
 
         r.report_path = self._generate_report(r)
+        r.json_path = self._generate_json(r)
+
+        # Generate PDF using the same browser
+        if generate_pdf and self._last_html_path and os.path.exists(self._last_html_path):
+            try:
+                pdf_path = self._last_html_path.replace(".html", ".pdf")
+                page = await browser.new_page()
+                await page.goto(f"file://{os.path.abspath(self._last_html_path)}", wait_until="networkidle", timeout=15000)
+                await page.pdf(path=pdf_path, format="A4", print_background=True)
+                await page.close()
+                r.pdf_path = pdf_path
+            except:
+                pass
+
         return r
 
     # ──── STATIC CHECKS ────
@@ -906,6 +937,57 @@ class SEOAuditor:
 
     # ──── REPORT ────
 
+    def _generate_json(self, r):
+        """Generate a JSON report alongside the HTML report."""
+        import json
+        checks = [
+            ("title", r.title.passed), ("meta_desc", r.meta_desc.passed), ("headings", r.headings.passed),
+            ("schema", r.schema.passed), ("image_alt", r.image_alt.passed), ("responsive", r.responsive.passed),
+            ("indexability", r.indexable.passed), ("canonical", r.canonical.passed), ("internal_links", r.internal_links.passed),
+            ("og_tags", r.og_tags.passed), ("ssl", r.ssl.passed),
+            ("hero_desktop", r.hero_dt.passed), ("hero_ipad", r.hero_ip.passed), ("hero_mobile", r.hero_mo.passed),
+            ("font_consistency", r.fonts.passed), ("contact_forms", r.forms.passed),
+            ("cdp_console", r.cdp_console.passed), ("cdp_network", r.cdp_network.passed), ("web_vitals", r.cdp_vitals.passed),
+        ]
+        passed = sum(1 for _, p in checks if p)
+        total = len(checks)
+        score = round(passed / total * 100, 1)
+        grade = "A" if score >= 90 else "B" if score >= 75 else "C" if score >= 60 else "D" if score >= 40 else "F"
+
+        data = {
+            "url": r.url,
+            "timestamp": datetime.now().isoformat(),
+            "quick_mode": self.quick,
+            "score": score, "grade": grade, "passed": passed, "total": total,
+            "title": {"text": r.title.text, "length": r.title.length, "status": r.title.status, "passed": r.title.passed},
+            "meta_desc": {"text": r.meta_desc.text[:200], "length": r.meta_desc.length, "status": r.meta_desc.status, "passed": r.meta_desc.passed},
+            "headings": {"total": r.headings.total, "h1_count": r.headings.h1_count, "issues": r.headings.issues, "passed": r.headings.passed},
+            "schema": {"count": r.schema.count, "types": r.schema.types, "passed": r.schema.passed},
+            "image_alt": {"total": r.image_alt.total, "missing": r.image_alt.missing, "passed": r.image_alt.passed},
+            "responsive": {"has_viewport": r.responsive.has_viewport, "passed": r.responsive.passed},
+            "indexability": {"indexable": r.indexable.indexable, "passed": r.indexable.passed},
+            "canonical": {"href": r.canonical.href, "passed": r.canonical.passed},
+            "internal_links": {"total": r.internal_links.total, "broken": len(r.internal_links.broken), "passed": r.internal_links.passed},
+            "og_tags": {"found": r.og_tags.tags_found, "passed": r.og_tags.passed},
+            "ssl": {"is_https": r.ssl.is_https, "passed": r.ssl.passed},
+            "image_loading": {"total": r.image_load.total, "flagged": len(r.image_load.broken)},
+            "hero": {"desktop": r.hero_dt.passed, "ipad": r.hero_ip.passed, "mobile": r.hero_mo.passed},
+            "breadcrumbs": {"exists": r.breadcrumbs.exists},
+            "menu_links": r.menu_click.total_links,
+            "fonts": {"unique": r.fonts.unique_fonts, "passed": r.fonts.passed},
+            "button_styles": r.button_style.unique_styles,
+            "forms": {"count": r.forms.count, "passed": r.forms.passed},
+            "vitals": {"lcp": r.cdp_vitals.lcp, "cls": r.cdp_vitals.cls, "fcp": r.cdp_vitals.fcp, "ttfb": r.cdp_vitals.ttfb, "perf_score": r.cdp_vitals.perf_score},
+            "errors": r.errors,
+        }
+
+        ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        domain = urlparse(self.url).netloc.replace("www.", "")
+        path = os.path.join(self.report_dir, f"report-{domain}-{ts}.json")
+        with open(path, "w") as f:
+            json.dump(data, f, indent=2)
+        return path
+
     def _generate_report(self, r):
         def _s(p): return "PASS" if p else "FAIL"
         def _c(p): return "#22c55e" if p else "#ef4444"
@@ -1121,4 +1203,5 @@ class SEOAuditor:
         path = os.path.join(self.report_dir, filename)
         with open(path, "w") as f:
             f.write(html)
+        self._last_html_path = path
         return path
