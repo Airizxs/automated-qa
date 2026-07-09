@@ -3,6 +3,7 @@ import sys
 import os
 import asyncio
 from urllib.parse import urlparse
+from playwright.async_api import async_playwright
 from seo_audit import SEOAuditor
 
 
@@ -113,63 +114,72 @@ def read_urls_from_file(filepath):
     return urls
 
 
-async def run_audit(url):
+async def run_audit(url, quick=False, browser=None):
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
 
     report_dir = os.path.join(os.path.dirname(__file__), "reports")
-    auditor = SEOAuditor(url, report_dir=report_dir)
-    result = await auditor.run_all()
+    auditor = SEOAuditor(url, report_dir=report_dir, quick=quick)
+    result = await auditor.run_all(browser=browser)
     print_results(result)
     return result
 
 
-async def run_batch(urls):
+async def run_batch(urls, quick=False):
     """Run audit on multiple URLs and print batch summary."""
     results_data = []
     total = len(urls)
 
-    for i, url in enumerate(urls, 1):
-        url = url.strip()
-        if not url:
-            continue
-        print(f"\n  [{i}/{total}]", end="")
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(
+            headless=True,
+            args=["--disable-blink-features=AutomationControlled", "--no-sandbox"]
+        )
         try:
-            result = await run_audit(url)
-            if result:
-                results_data.append(get_score_summary(result))
-        except Exception as e:
-            print(f"  ✗ Error: {e}")
+            for i, url in enumerate(urls, 1):
+                url = url.strip()
+                if not url:
+                    continue
+                print(f"\n  [{i}/{total}]", end="")
+                try:
+                    result = await run_audit(url, quick=quick, browser=browser)
+                    if result:
+                        results_data.append(get_score_summary(result))
+                except Exception as e:
+                    print(f"  \u2717 Error: {e}")
+        finally:
+            await browser.close()
 
     if results_data:
         print_batch_summary(results_data)
 
 
 async def main():
+    args = sys.argv[1:]
+    quick = "--quick" in args
+    args = [a for a in args if a != "--quick"]
+
     urls = []
 
     # --file flag: read URLs from file
-    if "--file" in sys.argv:
-        idx = sys.argv.index("--file")
-        if idx + 1 < len(sys.argv):
-            urls = read_urls_from_file(sys.argv[idx + 1])
+    if "--file" in args:
+        idx = args.index("--file")
+        if idx + 1 < len(args):
+            urls = read_urls_from_file(args[idx + 1])
             if not urls:
                 print(f"  No URLs found in file")
                 return
         else:
             print("  Usage: python3 main.py --file <path>")
             return
-    # Multiple positional args
-    elif len(sys.argv) >= 2:
-        urls = sys.argv[1:]
+    elif len(args) >= 1:
+        urls = args
 
     if len(urls) == 1:
-        # Single URL mode
-        await run_audit(urls[0])
+        await run_audit(urls[0], quick=quick)
     elif len(urls) > 1:
-        # Batch mode
-        print(f"\n  Batch audit: {len(urls)} URLs")
-        await run_batch(urls)
+        print(f"\n  Batch audit: {len(urls)} URLs" + (" (--quick mode)" if quick else ""))
+        await run_batch(urls, quick=quick)
     else:
         # Interactive mode
         print()
@@ -187,15 +197,17 @@ async def main():
                 print("\n  Bye!")
                 break
 
-            if not url_input or url_input.lower() in ("exit", "quit", "q"):
+            if not url_input:
+                continue
+            if url_input.lower() in ("exit", "quit", "q"):
                 print("  Bye!")
                 break
 
             if "," in url_input:
                 url_list = [u.strip() for u in url_input.split(",") if u.strip()]
-                await run_batch(url_list)
+                await run_batch(url_list, quick=quick)
             else:
-                await run_audit(url_input)
+                await run_audit(url_input, quick=quick)
 
 
 if __name__ == "__main__":

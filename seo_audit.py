@@ -100,9 +100,10 @@ class AuditResult:
 # ──── AUDITOR ────
 
 class SEOAuditor:
-    def __init__(self, url: str, report_dir: str = "reports"):
+    def __init__(self, url: str, report_dir: str = "reports", quick: bool = False):
         self.url = url
         self.report_dir = report_dir
+        self.quick = quick
         os.makedirs(report_dir, exist_ok=True)
 
     async def _page(self, browser, vp_name="Desktop"):
@@ -127,83 +128,88 @@ class SEOAuditor:
             except: pass
         return ctx, page
 
-    async def run_all(self) -> AuditResult:
-        r = AuditResult(url=self.url)
+    async def run_all(self, browser=None) -> AuditResult:
+        if browser is not None:
+            return await self._run_with_browser(browser)
+
         async with async_playwright() as p:
             browser = await p.chromium.launch(
                 headless=True,
                 args=["--disable-blink-features=AutomationControlled", "--no-sandbox"]
             )
-            dt_ctx = ip_ctx = mo_ctx = None
             try:
-                dt_ctx, dt_page = await self._page(browser, "Desktop")
-                # Wait a bit more for full page render
-                try: await dt_page.wait_for_load_state("networkidle", timeout=10000)
-                except: pass
-                await dt_page.wait_for_timeout(1000)
+                return await self._run_with_browser(browser)
+            finally:
+                await browser.close()
 
-                # ── STATIC HTML CHECKS (all from one page load) ──
-                html = await dt_page.content()
+    async def _run_with_browser(self, browser) -> AuditResult:
+        r = AuditResult(url=self.url)
+        dt_ctx = ip_ctx = mo_ctx = None
+        try:
+            dt_ctx, dt_page = await self._page(browser, "Desktop")
+            try: await dt_page.wait_for_load_state("networkidle", timeout=10000)
+            except: pass
+            await dt_page.wait_for_timeout(1000)
 
-                self._check_title(html, r)
-                self._check_meta_desc(html, r)
-                self._check_headings(html, r)
-                self._check_schema(html, r)
-                self._check_image_alt(html, r)
-                self._check_responsive(html, r)
-                self._check_indexable(html, r, dt_page)
-                self._check_canonical(html, r)
-                self._check_internal_links(html, r)
-                self._check_og_tags(html, r)
-                self._check_ssl(r)
+            html = await dt_page.content()
+            self._check_title(html, r)
+            self._check_meta_desc(html, r)
+            self._check_headings(html, r)
+            self._check_schema(html, r)
+            self._check_image_alt(html, r)
+            self._check_responsive(html, r)
+            self._check_indexable(html, r, dt_page)
+            self._check_canonical(html, r)
+            self._check_internal_links(html, r)
+            self._check_og_tags(html, r)
+            self._check_ssl(r)
 
-                # ── CDP CHECKS (Chrome DevTools Protocol) ──
+            if not self.quick:
                 try: r.cdp_console, r.cdp_network, r.cdp_vitals = await self._check_cdp(browser)
                 except: pass
                 self._calc_perf_score(r.cdp_vitals)
 
-                # ── DYNAMIC CHECKS (Playwright) ──
-                r.sticky_dt = await self._check_sticky(dt_page, "Desktop")
-                r.hero_dt = await self._check_hero(dt_page, "Desktop")
-                r.featured_image = await self._check_featured_image(dt_page)
+            r.sticky_dt = await self._check_sticky(dt_page, "Desktop")
+            r.hero_dt = await self._check_hero(dt_page, "Desktop")
+            r.featured_image = await self._check_featured_image(dt_page)
+            if not self.quick:
                 r.image_load = await self._check_image_loading(dt_page)
-                r.breadcrumbs = await self._check_breadcrumbs(dt_page)
-                try: r.menu_click = await self._check_menu_clickability(dt_page)
-                except: pass
-                try: r.fonts = await self._check_fonts(dt_page)
-                except: pass
-                try: r.button_style = await self._check_button_style(dt_page)
-                except: pass
-                try: r.forms = await self._check_contact_forms(dt_page)
-                except: pass
+            r.breadcrumbs = await self._check_breadcrumbs(dt_page)
+            try: r.menu_click = await self._check_menu_clickability(dt_page)
+            except: pass
+            try: r.fonts = await self._check_fonts(dt_page)
+            except: pass
+            try: r.button_style = await self._check_button_style(dt_page)
+            except: pass
+            try: r.forms = await self._check_contact_forms(dt_page)
+            except: pass
 
-                try: await dt_ctx.close()
-                except: pass
+            try: await dt_ctx.close()
+            except: pass
 
-                try:
-                    ip_ctx, ip_page = await self._page(browser, "iPad")
-                    r.sticky_ip = await self._check_sticky(ip_page, "iPad")
-                    r.hero_ip = await self._check_hero(ip_page, "iPad")
-                    try: await ip_ctx.close()
+            try:
+                ip_ctx, ip_page = await self._page(browser, "iPad")
+                r.sticky_ip = await self._check_sticky(ip_page, "iPad")
+                r.hero_ip = await self._check_hero(ip_page, "iPad")
+                try: await ip_ctx.close()
+                except: pass
+            except: pass
+
+            try:
+                mo_ctx, mo_page = await self._page(browser, "Mobile")
+                r.sticky_mo = await self._check_sticky(mo_page, "Mobile")
+                r.hero_mo = await self._check_hero(mo_page, "Mobile")
+                try: await mo_ctx.close()
+                except: pass
+            except: pass
+
+        except Exception as e:
+            r.errors.append(str(e))
+        finally:
+            for ctx in [dt_ctx, ip_ctx, mo_ctx]:
+                if ctx:
+                    try: await ctx.close()
                     except: pass
-                except: pass
-
-                try:
-                    mo_ctx, mo_page = await self._page(browser, "Mobile")
-                    r.sticky_mo = await self._check_sticky(mo_page, "Mobile")
-                    r.hero_mo = await self._check_hero(mo_page, "Mobile")
-                    try: await mo_ctx.close()
-                    except: pass
-                except: pass
-
-            except Exception as e:
-                r.errors.append(str(e))
-            finally:
-                for ctx in [dt_ctx, ip_ctx, mo_ctx]:
-                    if ctx:
-                        try: await ctx.close()
-                        except: pass
-                await browser.close()
 
         r.report_path = self._generate_report(r)
         return r
@@ -338,6 +344,11 @@ class SEOAuditor:
                 if urlparse(full).netloc == domain:
                     links.add(urlparse(full)._replace(fragment="").geturl())
         r.internal_links.total = len(links)
+
+        if self.quick:
+            r.internal_links.passed = True
+            r.internal_links.broken = []
+            return
 
         # Check actual HTTP status of links (limit to 30)
         link_list = list(links)[:30]
