@@ -901,22 +901,23 @@ class SEOAuditor:
         def _i(p): return "✓" if p else "✗"
 
         def card(title, passed, items, screenshot=""):
+            icon = "✓" if passed else "✗"
             items_html = "".join(
-                f'<div class="{"issue" if "✗" in i else "ok"}">{i}</div>'
-                for i in (items if items else ["✓ All good"])
+                f'<div class="row {"issue" if "✗" in i else "ok"}">{i}</div>'
+                for i in (items if items else ["All good"])
             )
             ss = f'<img src="{os.path.basename(screenshot)}" loading="lazy" class="screenshot">' if screenshot and os.path.exists(screenshot) else ""
-            return f'''<div class="check-item">
+            return f'''<div class="check-card {"pass" if passed else "fail"}">
               <div class="check-header">
-                <span class="check-title">{title}</span>
-                <span class="badge {_s(passed).lower()}">{_s(passed)}</span>
+                <div class="check-title"><span class="check-icon {"pass" if passed else "fail"}">{icon}</span>{title}</div>
+                <span class="badge {"pass" if passed else "fail"}">{_s(passed)}</span>
               </div>
               <div class="check-body">{items_html}</div>
               {ss}
             </div>'''
 
         def section(title, cards_html):
-            return f'<div class="section"><h2>{title}</h2>{cards_html}</div>'
+            return f'<div class="section"><div class="section-title">{title}</div>{cards_html}</div>'
 
         # ── STATIC CHECKS ──
         static_cards = ""
@@ -979,69 +980,123 @@ class SEOAuditor:
         grade = "A" if score >= 90 else "B" if score >= 75 else "C" if score >= 60 else "D" if score >= 40 else "F"
         grade_color = "#22c55e" if grade == "A" else "#84cc16" if grade == "B" else "#eab308" if grade == "C" else "#f97316" if grade == "D" else "#ef4444"
 
-        score_html = f"""<div class="score-banner" style="border-top:4px solid {grade_color}">
-  <div class="score-num" style="color:{grade_color}">{score}%</div>
-  <div class="score-grade" style="background:{grade_color}">Grade {grade}</div>
-  <div class="score-detail">{total}/{len(checks)} checks passed</div>
-</div>"""
+        # Category scores
+        static_cats = [("Title", r.title.passed), ("Meta Desc", r.meta_desc.passed), ("Headings", r.headings.passed), ("Schema", r.schema.passed), ("Image Alt", r.image_alt.passed), ("Responsive", r.responsive.passed), ("Indexability", r.indexable.passed), ("Canonical", r.canonical.passed), ("Internal Links", r.internal_links.passed), ("OG Tags", r.og_tags.passed), ("SSL", r.ssl.passed)]
+        dynamic_cats = [("Image Loading", True), ("Hero Desktop", r.hero_dt.passed), ("Hero iPad", r.hero_ip.passed), ("Hero Mobile", r.hero_mo.passed), ("Breadcrumbs", r.breadcrumbs.passed), ("Menu Clickability", True), ("Font Consistency", r.fonts.passed), ("Button Style", True), ("Contact Forms", r.forms.passed)]
+        cdp_cats = [("Console Errors", r.cdp_console.passed), ("Failed Requests", r.cdp_network.passed), ("Web Vitals", r.cdp_vitals.passed)]
+
+        def _score(items): return sum(1 for _, p in items if p) / max(len(items), 1) * 100
+        static_score = round(_score(static_cats), 1)
+        dynamic_score = round(_score(dynamic_cats), 1)
+        cdp_score = round(_score(cdp_cats), 1)
+
+        def cat_bar(label, score):
+            color = "#10b981" if score >= 80 else "#f59e0b" if score >= 60 else "#ef4444"
+            return f'<div class="cat-row"><div class="cat-label"><span>{label}</span><span>{score:.0f}%</span></div><div class="cat-bar"><div class="cat-fill" style="width:{score}%;background:{color}"></div></div></div>'
+
+        category_bars = cat_bar("Static Checks", static_score) + cat_bar("Dynamic Checks", dynamic_score) + cat_bar("CDP & Performance", cdp_score)
+
+        css = """<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f1f5f9; color:#334155; line-height:1.6; }
+  .container { max-width:1100px; margin:0 auto; padding:24px; }
+  .header { background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color:white; border-radius:16px; padding:40px; margin-bottom:24px; box-shadow:0 10px 25px rgba(0,0,0,0.1); }
+  .header h1 { font-size:28px; font-weight:800; margin-bottom:8px; }
+  .header .url { color:#94a3b8; font-size:13px; word-break:break-all; margin-bottom:16px; }
+  .header-meta { display:flex; gap:24px; font-size:12px; color:#64748b; }
+  .score-row { display:flex; align-items:center; gap:32px; margin-top:28px; flex-wrap:wrap; }
+  .score-ring { width:120px; height:120px; border-radius:50%; display:flex; align-items:center; justify-content:center; position:relative; }
+  .score-ring::before { content:''; position:absolute; inset:8px; border-radius:50%; background:#0f172a; }
+  .score-inner { position:relative; text-align:center; }
+  .score-pct { font-size:26px; font-weight:800; color:white; }
+  .score-grade { font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; }
+  .score-stats { display:flex; gap:16px; }
+  .score-stat { background:rgba(255,255,255,0.1); padding:12px 22px; border-radius:10px; text-align:center; min-width:70px; }
+  .score-stat .num { font-size:20px; font-weight:700; color:white; }
+  .score-stat .label { font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px; margin-top:2px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:16px; margin-bottom:24px; }
+  .card { background:white; border-radius:12px; padding:22px; box-shadow:0 1px 3px rgba(0,0,0,0.08); }
+  .card h3 { font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:18px; }
+  .cat-row { margin-bottom:16px; }
+  .cat-label { display:flex; justify-content:space-between; font-size:13px; margin-bottom:6px; color:#334155; }
+  .cat-bar { height:8px; background:#e2e8f0; border-radius:4px; overflow:hidden; }
+  .cat-fill { height:100%; border-radius:4px; transition:width 0.5s ease; }
+  .section { margin-bottom:28px; }
+  .section-title { font-size:16px; font-weight:700; color:#0f172a; margin-bottom:16px; padding-bottom:10px; border-bottom:2px solid #e2e8f0; }
+  .check-card { background:white; border-radius:10px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.06); overflow:hidden; border-left:4px solid; }
+  .check-card.pass { border-left-color:#10b981; }
+  .check-card.fail { border-left-color:#ef4444; }
+  .check-header { display:flex; justify-content:space-between; align-items:center; padding:14px 18px; }
+  .check-title { font-size:14px; font-weight:600; color:#1e293b; display:flex; align-items:center; gap:10px; }
+  .check-icon { width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; color:white; font-weight:800; }
+  .check-icon.pass { background:#10b981; }
+  .check-icon.fail { background:#ef4444; }
+  .badge { font-size:10px; padding:4px 12px; border-radius:12px; font-weight:700; text-transform:uppercase; }
+  .badge.pass { background:#d1fae5; color:#065f46; }
+  .badge.fail { background:#fee2e2; color:#991b1b; }
+  .check-body { padding:0 18px 14px; font-size:13px; color:#475569; }
+  .check-body .row { padding:3px 0; }
+  .check-body .issue { color:#dc2626; }
+  .check-body .ok { color:#059669; }
+  .screenshot { width:100%; border-top:1px solid #f1f5f9; }
+  .screenshots { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:14px; }
+  .ss-card { background:white; border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.08); }
+  .ss-card img { width:100%; display:block; }
+  .ss-card span { display:block; font-size:11px; color:#64748b; padding:10px; text-align:center; background:#f8fafc; border-top:1px solid #f1f5f9; }
+  .vitals { display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:12px; }
+  .vital { text-align:center; padding:16px 10px; background:#f8fafc; border-radius:10px; }
+  .vital-value { font-size:22px; font-weight:700; }
+  .vital-label { font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-top:4px; }
+  .vital-target { font-size:10px; color:#94a3b8; margin-top:2px; }
+  .footer { text-align:center; color:#94a3b8; font-size:11px; margin-top:32px; padding-top:20px; border-top:1px solid #e2e8f0; }
+  @media (max-width:640px) { .header { padding:24px; } .score-row { flex-direction:column; align-items:flex-start; gap:20px; } }
+</style>"""
 
         html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SEO + QA Audit — {r.url}</title>
-<style>
-  * {{ margin:0; padding:0; box-sizing:border-box; }}
-  body {{ font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f1f5f9; color:#1e293b; padding:32px; line-height:1.5; }}
-  .container {{ max-width:960px; margin:0 auto; }}
-  h1 {{ font-size:22px; margin-bottom:2px; color:#0f172a; }}
-  .url {{ color:#64748b; font-size:12px; word-break:break-all; margin-bottom:20px; }}
-  .disclaimer {{ background:#fffbeb; border:2px solid #f59e0b; border-radius:8px; padding:16px 20px; margin-bottom:24px; font-size:12px; color:#78350f; line-height:1.6; }}
-  .disclaimer strong {{ color:#92400e; }}
-  .disclaimer code {{ background:#fef3c7; padding:1px 4px; border-radius:3px; font-size:11px; }}
-  .overview {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); gap:6px; margin-bottom:28px; }}
-  .stat {{ background:white; border-radius:8px; padding:10px; text-align:center; box-shadow:0 1px 2px rgba(0,0,0,0.05); }}
-  .stat .num {{ font-size:18px; font-weight:700; }}
-  .stat .label {{ font-size:9px; color:#64748b; margin-top:2px; text-transform:uppercase; letter-spacing:0.3px; }}
-  .section {{ margin-bottom:28px; }}
-  .section h2 {{ font-size:14px; color:#334155; margin-bottom:12px; padding-bottom:6px; border-bottom:2px solid #e2e8f0; }}
-  .check-item {{ background:white; border-radius:8px; margin-bottom:8px; box-shadow:0 1px 2px rgba(0,0,0,0.05); overflow:hidden; }}
-  .check-header {{ display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid #f1f5f9; }}
-  .check-title {{ font-size:12px; font-weight:600; color:#334155; }}
-  .badge {{ font-size:9px; padding:2px 8px; border-radius:10px; color:white; font-weight:600; text-transform:uppercase; }}
-  .badge.pass {{ background:#22c55e; }}
-  .badge.fail {{ background:#ef4444; }}
-  .check-body {{ padding:10px 14px; font-size:11px; color:#475569; }}
-  .check-body .issue {{ color:#ef4444; }}
-  .check-body .ok {{ color:#16a34a; }}
-  .screenshot {{ width:100%; border-top:1px solid #f1f5f9; }}
-  .score-banner {{ display:flex; align-items:center; gap:12px; background:white; border-radius:8px; padding:14px 20px; margin-bottom:20px; box-shadow:0 1px 2px rgba(0,0,0,0.05); }}
-  .score-num {{ font-size:28px; font-weight:800; }}
-  .score-grade {{ font-size:11px; padding:3px 10px; border-radius:10px; color:white; font-weight:700; text-transform:uppercase; }}
-  .score-detail {{ font-size:12px; color:#64748b; margin-left:auto; }}
-  .screenshots {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; }}
-  .ss-card {{ background:white; border-radius:8px; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,0.05); }}
-  .ss-card img {{ width:100%; display:block; }}
-  .ss-card span {{ display:block; font-size:10px; color:#64748b; padding:6px 10px; text-align:center; }}
-</style>
+{css}
 </head>
 <body>
 <div class="container">
-  <h1>SEO + QA Audit Report</h1>
-  <div class="url">{r.url}</div>
+  <div class="header">
+    <h1>SEO + QA Audit Report</h1>
+    <div class="url">{r.url}</div>
+    <div class="header-meta">
+      <span>Generated: {datetime.now().strftime('%B %d, %Y at %H:%M')}</span>
+      <span>{len(checks)} checks</span>
+    </div>
+    <div class="score-row">
+      <div class="score-ring" style="background:conic-gradient({grade_color} {score*3.6}deg, #334155 0deg);">
+        <div class="score-inner">
+          <div class="score-pct">{score}%</div>
+          <div class="score-grade">Grade {grade}</div>
+        </div>
+      </div>
+      <div class="score-stats">
+        <div class="score-stat"><div class="num">{len(checks)}</div><div class="label">Total</div></div>
+        <div class="score-stat"><div class="num" style="color:#10b981;">{total}</div><div class="label">Passed</div></div>
+        <div class="score-stat"><div class="num" style="color:#ef4444;">{len(checks)-total}</div><div class="label">Failed</div></div>
+      </div>
+    </div>
+  </div>
 
-  {score_html}
-
-  <div class="overview">
-    {"".join(f'<div class="stat" style="border-top:3px solid {_c(p)}"><div class="num" style="color:{_c(p)}">{_i(p)}</div><div class="label">{n}</div></div>' for n, p in [
-        ("Title", r.title.passed), ("Meta", r.meta_desc.passed), ("Headings", r.headings.passed),
-        ("Schema", r.schema.passed), ("Image Alt", r.image_alt.passed), ("Responsive", r.responsive.passed),
-            ("Index", r.indexable.passed), ("Canonical", r.canonical.passed),
-            ("OG Tags", r.og_tags.passed), ("SSL", r.ssl.passed),
-            ("Hero", r.hero_dt.passed),
-        ("Images", True), ("Fonts", r.fonts.passed), ("Forms", r.forms.passed),
-        ("CDP", r.cdp_console.passed), ("Vitals", r.cdp_vitals.passed),
-    ])}
+  <div class="grid">
+    <div class="card">
+      <h3>Category Scores</h3>
+      {category_bars}
+    </div>
+    <div class="card">
+      <h3>Core Web Vitals</h3>
+      <div class="vitals">
+        <div class="vital"><div class="vital-value" style="color:{'#ef4444' if r.cdp_vitals.lcp > 2.5 else '#10b981'}">{r.cdp_vitals.lcp:.2f}s</div><div class="vital-label">LCP</div><div class="vital-target">Target ≤2.5s</div></div>
+        <div class="vital"><div class="vital-value" style="color:{'#ef4444' if r.cdp_vitals.cls > 0.1 else '#10b981'}">{r.cdp_vitals.cls:.3f}</div><div class="vital-label">CLS</div><div class="vital-target">Target ≤0.1</div></div>
+        <div class="vital"><div class="vital-value" style="color:{'#ef4444' if r.cdp_vitals.fcp > 1.8 else '#10b981'}">{r.cdp_vitals.fcp:.2f}s</div><div class="vital-label">FCP</div><div class="vital-target">Target ≤1.8s</div></div>
+        <div class="vital"><div class="vital-value" style="color:{'#ef4444' if r.cdp_vitals.ttfb > 0.8 else '#10b981'}">{r.cdp_vitals.ttfb:.2f}s</div><div class="vital-label">TTFB</div><div class="vital-target">Target ≤0.8s</div></div>
+      </div>
+    </div>
   </div>
 
   {section("Static Checks (HTML)", static_cards)}
@@ -1049,8 +1104,8 @@ class SEOAuditor:
   {section("Chrome DevTools Protocol (CDP)", cdp_cards)}
   {evidence_section}
 
-  <div style="text-align:center; color:#94a3b8; font-size:10px; margin-top:24px; padding-top:16px; border-top:1px solid #e2e8f0;">
-    Generated by SEO + QA Audit Tool | Playwright + CDP
+  <div class="footer">
+    Automated QA Tool · Playwright + Chrome DevTools Protocol
   </div>
 </div>
 </body></html>"""
