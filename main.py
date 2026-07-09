@@ -46,7 +46,9 @@ def print_results(result):
     print(_line("FCP (First Contentful Paint)", result.cdp_vitals.passed, f"{result.cdp_vitals.fcp:.2f}s"))
     print(_line("TTFB (Time to First Byte)", result.cdp_vitals.passed, f"{result.cdp_vitals.ttfb:.2f}s"))
     print()
-    print(f"  Report: {os.path.basename(result.report_path)}")
+    rel = os.path.relpath(result.report_path, os.path.dirname(__file__))
+    print(f"  Report: {rel}")
+    print(f"  Open:   open {rel}")
     print()
 
 
