@@ -47,8 +47,11 @@ def print_results(result):
     print(_line("TTFB (Time to First Byte)", result.cdp_vitals.passed, f"{result.cdp_vitals.ttfb:.2f}s"))
     print()
     rel = os.path.relpath(result.report_path, os.path.dirname(__file__))
-    print(f"  Report: {rel}")
-    print(f"  Open:   open {rel}")
+    abs_path = os.path.abspath(result.report_path)
+    file_url = "file://" + abs_path
+    print(f"  Report:   {rel}")
+    print(f"  Terminal: open {rel}")
+    print(f"  Browser:  {file_url}")
     print()
 
 
