@@ -158,6 +158,5 @@ Each audit generates:
   FCP                        PASS  |  1.45s
   TTFB                       PASS  |  0.23s
 
-  Report: reports/report-2026-07-10T12-34-56.html
-  Dashboard: reports/dashboard-2026-07-10T12-34-56.html
+  Report: file:///path/to/reports/report-example.com-2026-07-10_12-34-56.html
 ```
