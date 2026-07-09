@@ -917,7 +917,7 @@ class SEOAuditor:
             </div>'''
 
         def section(title, cards_html):
-            return f'<div class="section"><div class="section-title">{title}</div>{cards_html}</div>'
+            return f'<div class="section"><div class="section-title">{title}</div><div class="checks-grid">{cards_html}</div></div>'
 
         # ── STATIC CHECKS ──
         static_cards = ""
@@ -998,58 +998,56 @@ class SEOAuditor:
 
         css = """<style>
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f1f5f9; color:#334155; line-height:1.6; }
-  .container { max-width:1100px; margin:0 auto; padding:24px; }
-  .header { background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color:white; border-radius:16px; padding:40px; margin-bottom:24px; box-shadow:0 10px 25px rgba(0,0,0,0.1); }
-  .header h1 { font-size:28px; font-weight:800; margin-bottom:8px; }
-  .header .url { color:#94a3b8; font-size:13px; word-break:break-all; margin-bottom:16px; }
-  .header-meta { display:flex; gap:24px; font-size:12px; color:#64748b; }
-  .score-row { display:flex; align-items:center; gap:32px; margin-top:28px; flex-wrap:wrap; }
-  .score-ring { width:120px; height:120px; border-radius:50%; display:flex; align-items:center; justify-content:center; position:relative; }
-  .score-ring::before { content:''; position:absolute; inset:8px; border-radius:50%; background:#0f172a; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f8fafc; color:#334155; line-height:1.45; font-size:13px; }
+  .container { max-width:1200px; margin:0 auto; padding:16px; }
+  .header { background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color:white; border-radius:12px; padding:20px 24px; margin-bottom:14px; box-shadow:0 4px 12px rgba(0,0,0,0.1); display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+  .header-left { flex:1; min-width:280px; }
+  .header h1 { font-size:20px; font-weight:800; margin-bottom:4px; }
+  .header .url { color:#94a3b8; font-size:11px; word-break:break-all; margin-bottom:6px; }
+  .header-meta { display:flex; gap:16px; font-size:10px; color:#64748b; }
+  .score-ring { width:70px; height:70px; border-radius:50%; display:flex; align-items:center; justify-content:center; position:relative; flex-shrink:0; }
+  .score-ring::before { content:''; position:absolute; inset:6px; border-radius:50%; background:#0f172a; }
   .score-inner { position:relative; text-align:center; }
-  .score-pct { font-size:26px; font-weight:800; color:white; }
-  .score-grade { font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; }
-  .score-stats { display:flex; gap:16px; }
-  .score-stat { background:rgba(255,255,255,0.1); padding:12px 22px; border-radius:10px; text-align:center; min-width:70px; }
-  .score-stat .num { font-size:20px; font-weight:700; color:white; }
-  .score-stat .label { font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px; margin-top:2px; }
-  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:16px; margin-bottom:24px; }
-  .card { background:white; border-radius:12px; padding:22px; box-shadow:0 1px 3px rgba(0,0,0,0.08); }
-  .card h3 { font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:18px; }
-  .cat-row { margin-bottom:16px; }
-  .cat-label { display:flex; justify-content:space-between; font-size:13px; margin-bottom:6px; color:#334155; }
-  .cat-bar { height:8px; background:#e2e8f0; border-radius:4px; overflow:hidden; }
-  .cat-fill { height:100%; border-radius:4px; transition:width 0.5s ease; }
-  .section { margin-bottom:28px; }
-  .section-title { font-size:16px; font-weight:700; color:#0f172a; margin-bottom:16px; padding-bottom:10px; border-bottom:2px solid #e2e8f0; }
-  .check-card { background:white; border-radius:10px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.06); overflow:hidden; border-left:4px solid; }
+  .score-pct { font-size:15px; font-weight:800; color:white; }
+  .score-grade { font-size:8px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px; }
+  .top-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px; margin-bottom:14px; }
+  .card { background:white; border-radius:10px; padding:14px; box-shadow:0 1px 2px rgba(0,0,0,0.06); }
+  .card h3 { font-size:10px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px; }
+  .cat-row { margin-bottom:8px; }
+  .cat-row:last-child { margin-bottom:0; }
+  .cat-label { display:flex; justify-content:space-between; font-size:11px; margin-bottom:3px; color:#334155; }
+  .cat-bar { height:5px; background:#e2e8f0; border-radius:3px; overflow:hidden; }
+  .cat-fill { height:100%; border-radius:3px; }
+  .vitals { display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; }
+  .vital { text-align:center; padding:8px 4px; background:#f8fafc; border-radius:6px; }
+  .vital-value { font-size:15px; font-weight:700; }
+  .vital-label { font-size:9px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-top:2px; }
+  .vital-target { font-size:8px; color:#94a3b8; margin-top:1px; }
+  .section { margin-bottom:14px; }
+  .section-title { font-size:13px; font-weight:700; color:#0f172a; margin-bottom:8px; padding-bottom:5px; border-bottom:1px solid #e2e8f0; }
+  .checks-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:8px; }
+  .check-card { background:white; border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,0.05); overflow:hidden; border-left:3px solid; }
   .check-card.pass { border-left-color:#10b981; }
   .check-card.fail { border-left-color:#ef4444; }
-  .check-header { display:flex; justify-content:space-between; align-items:center; padding:14px 18px; }
-  .check-title { font-size:14px; font-weight:600; color:#1e293b; display:flex; align-items:center; gap:10px; }
-  .check-icon { width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; color:white; font-weight:800; }
+  .check-header { display:flex; justify-content:space-between; align-items:center; padding:8px 10px; }
+  .check-title { font-size:12px; font-weight:600; color:#1e293b; display:flex; align-items:center; gap:6px; }
+  .check-icon { width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:8px; color:white; font-weight:800; }
   .check-icon.pass { background:#10b981; }
   .check-icon.fail { background:#ef4444; }
-  .badge { font-size:10px; padding:4px 12px; border-radius:12px; font-weight:700; text-transform:uppercase; }
+  .badge { font-size:8px; padding:2px 8px; border-radius:10px; font-weight:700; text-transform:uppercase; }
   .badge.pass { background:#d1fae5; color:#065f46; }
   .badge.fail { background:#fee2e2; color:#991b1b; }
-  .check-body { padding:0 18px 14px; font-size:13px; color:#475569; }
-  .check-body .row { padding:3px 0; }
+  .check-body { padding:0 10px 8px; font-size:11px; color:#475569; }
+  .check-body .row { padding:2px 0; }
   .check-body .issue { color:#dc2626; }
   .check-body .ok { color:#059669; }
   .screenshot { width:100%; border-top:1px solid #f1f5f9; }
-  .screenshots { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:14px; }
-  .ss-card { background:white; border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.08); }
+  .screenshots { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:8px; }
+  .ss-card { background:white; border-radius:8px; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,0.05); }
   .ss-card img { width:100%; display:block; }
-  .ss-card span { display:block; font-size:11px; color:#64748b; padding:10px; text-align:center; background:#f8fafc; border-top:1px solid #f1f5f9; }
-  .vitals { display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:12px; }
-  .vital { text-align:center; padding:16px 10px; background:#f8fafc; border-radius:10px; }
-  .vital-value { font-size:22px; font-weight:700; }
-  .vital-label { font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-top:4px; }
-  .vital-target { font-size:10px; color:#94a3b8; margin-top:2px; }
-  .footer { text-align:center; color:#94a3b8; font-size:11px; margin-top:32px; padding-top:20px; border-top:1px solid #e2e8f0; }
-  @media (max-width:640px) { .header { padding:24px; } .score-row { flex-direction:column; align-items:flex-start; gap:20px; } }
+  .ss-card span { display:block; font-size:9px; color:#64748b; padding:5px; text-align:center; background:#f8fafc; border-top:1px solid #f1f5f9; }
+  .footer { text-align:center; color:#94a3b8; font-size:9px; margin-top:16px; padding-top:10px; border-top:1px solid #e2e8f0; }
+  @media (max-width:640px) { .header { flex-direction:column; align-items:flex-start; } .vitals { grid-template-columns:repeat(2, 1fr); } .checks-grid { grid-template-columns:1fr; } }
 </style>"""
 
         html = f"""<!DOCTYPE html>
@@ -1062,28 +1060,25 @@ class SEOAuditor:
 <body>
 <div class="container">
   <div class="header">
-    <h1>SEO + QA Audit Report</h1>
-    <div class="url">{r.url}</div>
-    <div class="header-meta">
-      <span>Generated: {datetime.now().strftime('%B %d, %Y at %H:%M')}</span>
-      <span>{len(checks)} checks</span>
-    </div>
-    <div class="score-row">
-      <div class="score-ring" style="background:conic-gradient({grade_color} {score*3.6}deg, #334155 0deg);">
-        <div class="score-inner">
-          <div class="score-pct">{score}%</div>
-          <div class="score-grade">Grade {grade}</div>
-        </div>
+    <div class="header-left">
+      <h1>SEO + QA Audit Report</h1>
+      <div class="url">{r.url}</div>
+      <div class="header-meta">
+        <span>Generated: {datetime.now().strftime('%B %d, %Y at %H:%M')}</span>
+        <span>{len(checks)} checks</span>
+        <span style="color:#10b981;">{total} passed</span>
+        <span style="color:#ef4444;">{len(checks)-total} failed</span>
       </div>
-      <div class="score-stats">
-        <div class="score-stat"><div class="num">{len(checks)}</div><div class="label">Total</div></div>
-        <div class="score-stat"><div class="num" style="color:#10b981;">{total}</div><div class="label">Passed</div></div>
-        <div class="score-stat"><div class="num" style="color:#ef4444;">{len(checks)-total}</div><div class="label">Failed</div></div>
+    </div>
+    <div class="score-ring" style="background:conic-gradient({grade_color} {score*3.6}deg, #334155 0deg);">
+      <div class="score-inner">
+        <div class="score-pct">{score}%</div>
+        <div class="score-grade">Grade {grade}</div>
       </div>
     </div>
   </div>
 
-  <div class="grid">
+  <div class="top-grid">
     <div class="card">
       <h3>Category Scores</h3>
       {category_bars}
@@ -1091,10 +1086,10 @@ class SEOAuditor:
     <div class="card">
       <h3>Core Web Vitals</h3>
       <div class="vitals">
-        <div class="vital"><div class="vital-value" style="color:{'#ef4444' if r.cdp_vitals.lcp > 2.5 else '#10b981'}">{r.cdp_vitals.lcp:.2f}s</div><div class="vital-label">LCP</div><div class="vital-target">Target ≤2.5s</div></div>
-        <div class="vital"><div class="vital-value" style="color:{'#ef4444' if r.cdp_vitals.cls > 0.1 else '#10b981'}">{r.cdp_vitals.cls:.3f}</div><div class="vital-label">CLS</div><div class="vital-target">Target ≤0.1</div></div>
-        <div class="vital"><div class="vital-value" style="color:{'#ef4444' if r.cdp_vitals.fcp > 1.8 else '#10b981'}">{r.cdp_vitals.fcp:.2f}s</div><div class="vital-label">FCP</div><div class="vital-target">Target ≤1.8s</div></div>
-        <div class="vital"><div class="vital-value" style="color:{'#ef4444' if r.cdp_vitals.ttfb > 0.8 else '#10b981'}">{r.cdp_vitals.ttfb:.2f}s</div><div class="vital-label">TTFB</div><div class="vital-target">Target ≤0.8s</div></div>
+        <div class="vital"><div class="vital-value" style="color:{'#ef4444' if r.cdp_vitals.lcp > 2.5 else '#10b981'}">{r.cdp_vitals.lcp:.2f}s</div><div class="vital-label">LCP</div><div class="vital-target">≤2.5s</div></div>
+        <div class="vital"><div class="vital-value" style="color:{'#ef4444' if r.cdp_vitals.cls > 0.1 else '#10b981'}">{r.cdp_vitals.cls:.3f}</div><div class="vital-label">CLS</div><div class="vital-target">≤0.1</div></div>
+        <div class="vital"><div class="vital-value" style="color:{'#ef4444' if r.cdp_vitals.fcp > 1.8 else '#10b981'}">{r.cdp_vitals.fcp:.2f}s</div><div class="vital-label">FCP</div><div class="vital-target">≤1.8s</div></div>
+        <div class="vital"><div class="vital-value" style="color:{'#ef4444' if r.cdp_vitals.ttfb > 0.8 else '#10b981'}">{r.cdp_vitals.ttfb:.2f}s</div><div class="vital-label">TTFB</div><div class="vital-target">≤0.8s</div></div>
       </div>
     </div>
   </div>
