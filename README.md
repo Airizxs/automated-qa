@@ -26,21 +26,30 @@ python3 main.py https://example.com
 ## Usage
 
 ```bash
-# Single URL
+# Single URL (full audit)
 python3 main.py https://www.basespawellness.com
 
-# Batch — multiple URLs
-python3 main.py example.com another-site.com third-site.com
+# Single URL (quick — skips CDP, image loading, link verification)
+python3 main.py --quick example.com
+
+# Batch — multiple URLs (browser reused across URLs for speed)
+python3 main.py --quick example.com another-site.com third-site.com
 
 # Batch — read URLs from file (one per line, or CSV first column)
 python3 main.py --file urls.txt
 
 # Interactive mode — paste URLs one by one
-# (comma-separate for batch, or single URL for individual audit)
 python3 main.py
 # URL > example.com, another-site.com
 # URL > exit
 ```
+
+### Flags
+
+| Flag | Effect |
+|---|---|
+| `--quick` | Skip CDP checks, image loading scans, and internal link HTTP verification. ~2-3x faster. |
+| `--file <path>` | Read URLs from file (one per line or CSV first column) |
 
 ---
 
