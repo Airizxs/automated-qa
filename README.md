@@ -1,4 +1,4 @@
-# SEO & QA Audit Tool
+# SEO & QA Audit Tool v2.0
 
 Automated website audit — checks SEO, accessibility, images, layout, performance, and more across Desktop, iPad, and Mobile. Uses Playwright (browser-based) for real rendered DOM checks and Chrome DevTools Protocol (CDP) for performance metrics. No API keys needed.
 
@@ -26,12 +26,19 @@ python3 main.py https://example.com
 ## Usage
 
 ```bash
-# Audit a single URL
+# Single URL
 python3 main.py https://www.basespawellness.com
 
+# Batch — multiple URLs
+python3 main.py example.com another-site.com third-site.com
+
+# Batch — read URLs from file (one per line, or CSV first column)
+python3 main.py --file urls.txt
+
 # Interactive mode — paste URLs one by one
+# (comma-separate for batch, or single URL for individual audit)
 python3 main.py
-# URL > https://example.com
+# URL > example.com, another-site.com
 # URL > exit
 ```
 

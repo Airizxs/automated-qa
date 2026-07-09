@@ -2,6 +2,7 @@
 import sys
 import os
 import asyncio
+from urllib.parse import urlparse
 from seo_audit import SEOAuditor
 
 
@@ -51,45 +52,150 @@ def print_results(result):
     print()
 
 
+def get_score_summary(result):
+    """Extract score summary from audit result for batch reports."""
+    r = result
+    checks = [
+        ("Title", r.title.passed), ("Meta Desc", r.meta_desc.passed), ("Headings", r.headings.passed),
+        ("Schema", r.schema.passed), ("Image Alt", r.image_alt.passed), ("Responsive", r.responsive.passed),
+        ("Indexability", r.indexable.passed), ("Canonical", r.canonical.passed), ("Internal Links", r.internal_links.passed),
+        ("OG Tags", r.og_tags.passed), ("SSL", r.ssl.passed),
+        ("Hero Desktop", r.hero_dt.passed), ("Hero iPad", r.hero_ip.passed), ("Hero Mobile", r.hero_mo.passed),
+        ("Fonts", r.fonts.passed), ("Contact Forms", r.forms.passed),
+        ("CDP Console", r.cdp_console.passed), ("CDP Network", r.cdp_network.passed), ("Web Vitals", r.cdp_vitals.passed),
+    ]
+    passed = sum(1 for _, p in checks if p)
+    total = len(checks)
+    score = round(passed / total * 100, 1)
+    grade = "A" if score >= 90 else "B" if score >= 75 else "C" if score >= 60 else "D" if score >= 40 else "F"
+    return {"url": r.url, "score": score, "grade": grade, "passed": passed, "total": total, "report_path": r.report_path}
+
+
+def print_batch_summary(results):
+    """Print a clean batch audit summary table."""
+    scores = [r["score"] for r in results]
+    avg = round(sum(scores) / len(scores), 1)
+    best = max(results, key=lambda r: r["score"])
+    worst = min(results, key=lambda r: r["score"])
+
+    print()
+    print(f"  {'─'*80}")
+    print(f"  {'BATCH AUDIT SUMMARY':^80}")
+    print(f"  {len(results)} URLs completed | Average: {avg}%")
+    print(f"  {'─'*80}")
+    print(f"  {'#':<4} {'URL':<48} {'Score':<8} {'Grade':<7} {'Passed':<9} {'Report'}")
+    print(f"  {'─'*80}")
+
+    for i, r in enumerate(results, 1):
+        domain = urlparse(r["url"]).netloc.replace("www.", "") + urlparse(r["url"]).path
+        if len(domain) > 46:
+            domain = domain[:43] + "..."
+        filename = os.path.basename(r["report_path"])
+        print(f"  {i:<4} {domain:<48} {r['score']:>5.1f}%  {r['grade']:<7} {r['passed']}/{r['total']:<7} {filename}")
+
+    print(f"  {'─'*80}")
+    print(f"  Best: {best['score']}% ({best['grade']}) | Worst: {worst['score']}% ({worst['grade']})")
+    print(f"  {'─'*80}")
+    print()
+
+
+def read_urls_from_file(filepath):
+    """Read URLs from a text file (one per line) or CSV (first column)."""
+    urls = []
+    with open(filepath, "r") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#"):
+                if "," in line:
+                    line = line.split(",")[0].strip()
+                if line:
+                    urls.append(line)
+    return urls
+
+
 async def run_audit(url):
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
-
-    print(f"\n  Running SEO audit on: {url}")
-    print(f"  {'.'*50}\n")
 
     report_dir = os.path.join(os.path.dirname(__file__), "reports")
     auditor = SEOAuditor(url, report_dir=report_dir)
     result = await auditor.run_all()
     print_results(result)
+    return result
+
+
+async def run_batch(urls):
+    """Run audit on multiple URLs and print batch summary."""
+    results_data = []
+    total = len(urls)
+
+    for i, url in enumerate(urls, 1):
+        url = url.strip()
+        if not url:
+            continue
+        print(f"\n  [{i}/{total}]", end="")
+        try:
+            result = await run_audit(url)
+            if result:
+                results_data.append(get_score_summary(result))
+        except Exception as e:
+            print(f"  ✗ Error: {e}")
+
+    if results_data:
+        print_batch_summary(results_data)
 
 
 async def main():
-    # Single URL mode: python3 main.py https://example.com
-    if len(sys.argv) >= 2:
-        await run_audit(sys.argv[1])
-        return
+    urls = []
 
-    # Loop mode: paste URLs one by one
-    print()
-    print(f"  {'═'*60}")
-    print(f"  {'SEO & QA AUDIT TOOL':^60}")
-    print(f"  {'Paste a URL to audit. Type "exit" to quit.':^60}")
-    print(f"  {'═'*60}")
-    print()
+    # --file flag: read URLs from file
+    if "--file" in sys.argv:
+        idx = sys.argv.index("--file")
+        if idx + 1 < len(sys.argv):
+            urls = read_urls_from_file(sys.argv[idx + 1])
+            if not urls:
+                print(f"  No URLs found in file")
+                return
+        else:
+            print("  Usage: python3 main.py --file <path>")
+            return
+    # Multiple positional args
+    elif len(sys.argv) >= 2:
+        urls = sys.argv[1:]
 
-    while True:
-        try:
-            url = input("  URL > ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print("\n  Bye!")
-            break
+    if len(urls) == 1:
+        # Single URL mode
+        await run_audit(urls[0])
+    elif len(urls) > 1:
+        # Batch mode
+        print(f"\n  Batch audit: {len(urls)} URLs")
+        await run_batch(urls)
+    else:
+        # Interactive mode
+        print()
+        print(f"  {'═'*60}")
+        print(f"  {'SEO & QA AUDIT TOOL v2.0':^60}")
+        print(f"  {'Paste a URL to audit. Type "exit" to quit.':^60}")
+        print(f"  {'For batch: paste comma-separated URLs or use --file':^60}")
+        print(f"  {'═'*60}")
+        print()
 
-        if not url or url.lower() in ("exit", "quit", "q"):
-            print("  Bye!")
-            break
+        while True:
+            try:
+                url_input = input("  URL > ").strip()
+            except (EOFError, KeyboardInterrupt):
+                print("\n  Bye!")
+                break
 
-        await run_audit(url)
+            if not url_input or url_input.lower() in ("exit", "quit", "q"):
+                print("  Bye!")
+                break
+
+            if "," in url_input:
+                url_list = [u.strip() for u in url_input.split(",") if u.strip()]
+                await run_batch(url_list)
+            else:
+                await run_audit(url_input)
 
 
 if __name__ == "__main__":
