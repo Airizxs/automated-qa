@@ -578,14 +578,6 @@ class SEOAuditor:
         await page.evaluate("window.scrollTo(0, 0)")
         await page.wait_for_timeout(500)
 
-        # Take evidence screenshot at the TOP so the menu is always visible
-        ss = os.path.join(self.report_dir, f"sticky_{vp_name.lower()}.png")
-        try:
-            await page.screenshot(path=ss, full_page=False, timeout=5000)
-            r.screenshot = ss
-        except Exception as e:
-            r.issues.append(f"Screenshot failed: {e}")
-
         # Find header and record position BEFORE scroll
         header_info = await page.evaluate("""
             () => {
@@ -611,6 +603,10 @@ class SEOAuditor:
         if not header_info:
             r.issues.append("No header/nav element found")
             r.passed = False
+            ss = os.path.join(self.report_dir, f"sticky_{vp_name.lower()}.png")
+            try: await page.screenshot(path=ss, full_page=False, timeout=5000)
+            except: pass
+            r.screenshot = ss
             return r
 
         r.selector = header_info["tag"]
@@ -618,7 +614,7 @@ class SEOAuditor:
             r.selector += f"#{header_info['id']}"
         r.height = header_info["h"]
 
-        # Scroll down in steps to trigger sticky JS (scroll deeper for smaller viewports)
+        # Scroll down in steps to trigger sticky JS
         scroll1 = min(vp["height"] * 0.8, 800)
         scroll2 = min(vp["height"] * 1.0, 1000)
         await page.evaluate(f"window.scrollBy(0, {scroll1})")
@@ -629,7 +625,6 @@ class SEOAuditor:
         # Check: any element at viewport top with position fixed/sticky?
         header_after = await page.evaluate("""
             () => {
-                // Check 1: ALL sticky modules - find the ACTIVE one (position fixed, height > 0)
                 const stickyMods = document.querySelectorAll(
                     '.et_pb_sticky--stuck, .et_pb_sticky_module, .stuck, .sticky, .is-sticky, ' +
                     '.sticky-header, .fixed-header, .header-scrolled, .sticky-active, ' +
@@ -641,8 +636,6 @@ class SEOAuditor:
                     if ((cs.position === 'fixed' || cs.position === 'sticky') && r.height > 20)
                         return { topAfter: r.top, pos: cs.position };
                 }
-
-                // Check 2: header/nav tag with sticky position
                 const headerTag = document.querySelector('header, nav');
                 if (headerTag) {
                     const cs = getComputedStyle(headerTag);
@@ -650,8 +643,6 @@ class SEOAuditor:
                     if (cs.position === 'fixed' || cs.position === 'sticky')
                         return { topAfter: r.top, pos: cs.position };
                 }
-
-                // Check 3: any element fixed/sticky at viewport top
                 const topEls = document.querySelectorAll('body > div, header, nav');
                 for (const el of topEls) {
                     try {
@@ -663,8 +654,6 @@ class SEOAuditor:
                         }
                     } catch(e) {}
                 }
-
-                // Fallback: did header scroll away?
                 if (headerTag) {
                     const r = headerTag.getBoundingClientRect();
                     return { topAfter: r.top, pos: getComputedStyle(headerTag).position };
@@ -685,6 +674,12 @@ class SEOAuditor:
             r.issues.append("Header scrolled out of view — no sticky detected")
 
         r.passed = r.has_sticky and r.visible_scrolled
+
+        # Take evidence screenshot AFTER scroll so sticky state is visible
+        ss = os.path.join(self.report_dir, f"sticky_{vp_name.lower()}.png")
+        try: await page.screenshot(path=ss, full_page=False, timeout=5000)
+        except: pass
+        r.screenshot = ss
         return r
 
     async def _check_featured_image(self, page):
