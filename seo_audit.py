@@ -292,12 +292,8 @@ class SEOAuditor:
         if r.headings.h1_count == 0:
             r.headings.issues.append("Missing H1 tag")
         elif r.headings.h1_count > 1:
-            r.headings.issues.append(f"Multiple H1 tags ({r.headings.h1_count})")
-        levels = [int(i["tag"][1]) for i in items]
-        for i in range(1, len(levels)):
-            if levels[i] > levels[i-1] + 1:
-                r.headings.issues.append(f"Skipped level: {items[i-1]['tag']} → {items[i]['tag']}")
-        r.headings.passed = not r.headings.issues
+            r.headings.issues.append(f"Multiple H1 tags ({r.headings.h1_count}) — only 1 H1 recommended")
+        r.headings.passed = r.headings.h1_count == 1
 
     def _check_schema(self, html, r):
         import re, json
@@ -831,7 +827,7 @@ class SEOAuditor:
         """)
         r.fonts = [f.strip("'\"") for f in fonts]
         r.unique_fonts = len(r.fonts)
-        r.passed = r.unique_fonts <= 6
+        r.passed = True  # informational only
         return r
 
     async def _check_button_style(self, page):
@@ -984,6 +980,20 @@ class SEOAuditor:
         return path
 
     def _generate_report(self, r):
+        import base64 as b64
+
+        def embed_image(path):
+            """Convert image to base64 data URI for self-contained HTML."""
+            if not path or not os.path.exists(path):
+                return ""
+            try:
+                ext = os.path.splitext(path)[1].lower()
+                mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp"}.get(ext[1:], "image/png")
+                with open(path, "rb") as f:
+                    return f"data:{mime};base64,{b64.b64encode(f.read()).decode()}"
+            except:
+                return ""
+
         def _s(p): return "PASS" if p else "FAIL"
         def _c(p): return "#22c55e" if p else "#ef4444"
         def _i(p): return "✓" if p else "✗"
@@ -994,7 +1004,8 @@ class SEOAuditor:
                 f'<div class="row {"issue" if "✗" in i else "ok"}">{i}</div>'
                 for i in (items if items else ["All good"])
             )
-            ss = f'<img src="{os.path.basename(screenshot)}" loading="lazy" class="screenshot">' if screenshot and os.path.exists(screenshot) else ""
+            ss_data = embed_image(screenshot) if screenshot else ""
+            ss = f'<img src="{ss_data}" loading="lazy" class="screenshot">' if ss_data else ""
             return f'''<div class="check-card {"pass" if passed else "fail"}">
               <div class="check-header">
                 <div class="check-title"><span class="check-icon {"pass" if passed else "fail"}">{icon}</span>{title}</div>
@@ -1042,10 +1053,13 @@ class SEOAuditor:
         # ── EVIDENCE SCREENSHOTS ──
         evidence = ""
         for label, ss in [("Sticky Desktop", r.sticky_dt.screenshot), ("Sticky iPad", r.sticky_ip.screenshot), ("Sticky Mobile", r.sticky_mo.screenshot)]:
-            if ss and os.path.exists(ss):
-                evidence += f'<div class="ss-card"><img src="{os.path.basename(ss)}" loading="lazy"><span>{label}</span></div>'
-        if r.image_load.screenshot and os.path.exists(r.image_load.screenshot):
-            evidence += f'<div class="ss-card"><img src="{os.path.basename(r.image_load.screenshot)}" loading="lazy"><span>Image Loading</span></div>'
+            data = embed_image(ss)
+            if data:
+                evidence += f'<div class="ss-card"><img src="{data}" loading="lazy"><span>{label}</span></div>'
+        if r.image_load.screenshot:
+            data = embed_image(r.image_load.screenshot)
+            if data:
+                evidence += f'<div class="ss-card"><img src="{data}" loading="lazy"><span>Image Loading</span></div>'
 
         evidence_section = ""
         if evidence:
