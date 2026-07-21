@@ -3,3 +3,4 @@ __pycache__/
 reports/
 .DS_Store
 *.pdf
+.venv/

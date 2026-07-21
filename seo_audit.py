@@ -30,7 +30,7 @@ class CanonicalResult: href: str = ""; matches: bool = False; passed: bool = Fal
 @dataclass
 class InternalLinksResult: total: int = 0; broken: list = field(default_factory=list); passed: bool = False
 @dataclass
-class StickyResult: viewport: str = ""; has_sticky: bool = False; selector: str = ""; height: int = 0; visible_scrolled: bool = False; issues: list = field(default_factory=list); screenshot: str = ""; passed: bool = False
+class StickyResult: viewport: str = ""; has_sticky: bool = False; selector: str = ""; height: int = 0; visible_scrolled: bool = False; issues: list = field(default_factory=list); screenshot: str = ""; screenshot_scrolled: str = ""; passed: bool = False
 @dataclass
 class FeaturedImageResult: og_image: str = ""; image_exists: bool = False; issues: list = field(default_factory=list); passed: bool = False
 @dataclass
@@ -671,7 +671,7 @@ class SEOAuditor:
 
         r.passed = r.has_sticky and r.visible_scrolled
 
-        # Take evidence screenshot AFTER scroll so sticky state is visible
+        # Take ONE full-viewport evidence screenshot AFTER scroll so sticky state is visible
         ss = os.path.join(self.report_dir, f"sticky_{vp_name.lower()}.png")
         try: await page.screenshot(path=ss, full_page=False, timeout=5000)
         except: pass
@@ -1052,19 +1052,19 @@ class SEOAuditor:
 
         # ── EVIDENCE SCREENSHOTS ──
         evidence = ""
-        for label, ss in [("Sticky Desktop", r.sticky_dt.screenshot), ("Sticky iPad", r.sticky_ip.screenshot), ("Sticky Mobile", r.sticky_mo.screenshot)]:
-            data = embed_image(ss)
+        for label, vp in [("Desktop", r.sticky_dt), ("iPad", r.sticky_ip), ("Mobile", r.sticky_mo)]:
+            data = embed_image(vp.screenshot)
             if data:
-                evidence += f'<div class="ss-card"><img src="{data}" loading="lazy"><span>{label}</span></div>'
+                evidence += f'<div class="ss-card"><div class="ss-wrap"><img src="{data}" loading="lazy"></div><span>Sticky {label}</span></div>'
         if r.image_load.screenshot:
             data = embed_image(r.image_load.screenshot)
             if data:
-                evidence += f'<div class="ss-card"><img src="{data}" loading="lazy"><span>Image Loading</span></div>'
+                evidence += f'<div class="ss-card"><div class="ss-wrap"><img src="{data}" loading="lazy"></div><span>Image Loading</span></div>'
 
         evidence_section = ""
         if evidence:
             evidence_section = f"""
-  <div class="section"><h2>Evidence Screenshots</h2>
+  <div class="section"><div class="section-title">Evidence Screenshots</div>
   <div class="screenshots">{evidence}</div></div>"""
 
         # ── OVERALL SCORE ──
@@ -1144,9 +1144,10 @@ class SEOAuditor:
   .check-body .issue { color:#dc2626; }
   .check-body .ok { color:#059669; }
   .screenshot { width:100%; border-top:1px solid #f1f5f9; }
-  .screenshots { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:8px; }
-  .ss-card { background:white; border-radius:8px; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,0.05); }
-  .ss-card img { width:100%; display:block; }
+  .screenshots { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:8px; }
+  .ss-card { background:white; border-radius:8px; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,0.05); border:1px solid #e2e8f0; }
+  .ss-wrap { max-height:220px; overflow-y:auto; }
+  .ss-wrap img { width:100%; display:block; }
   .ss-card span { display:block; font-size:9px; color:#64748b; padding:5px; text-align:center; background:#f8fafc; border-top:1px solid #f1f5f9; }
   .footer { text-align:center; color:#94a3b8; font-size:9px; margin-top:16px; padding-top:10px; border-top:1px solid #e2e8f0; }
   @media (max-width:640px) { .header { flex-direction:column; align-items:flex-start; } .vitals { grid-template-columns:repeat(2, 1fr); } .checks-grid { grid-template-columns:1fr; } }
