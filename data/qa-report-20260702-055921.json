@@ -1,0 +1,242 @@
+{
+  "timestamp": "2026-07-02T05:57:19.835593",
+  "domain": "basespawellness.com",
+  "url": "https://www.basespawellness.com/",
+  "sections": {
+    "A_performance": {
+      "psi_mobile": {},
+      "psi_desktop": {},
+      "status": "ERROR",
+      "error": "500 Server Error: Internal Server Error for url: https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=https%3A%2F%2Fwww.basespawellness.com%2F&key=AIzaSyBP-S7D4XIAEO0HjgcuZOk8JDfgbwTQhkc&strategy=mobile&category=performance&category=accessibility&category=best-practices&category=seo"
+    },
+    "B_wp_rocket": {
+      "checks": [
+        {
+          "id": "B1",
+          "name": "remove_unused_css",
+          "status": "FAIL",
+          "detail": "No critical CSS \u2014 Remove Unused CSS may be off"
+        },
+        {
+          "id": "B2",
+          "name": "delay_js",
+          "status": "PASS",
+          "detail": "data-rocket-defer found"
+        },
+        {
+          "id": "B3",
+          "name": "lazyload",
+          "status": "FAIL",
+          "detail": "No lazy loading detected"
+        },
+        {
+          "id": "B4",
+          "name": "webp_conversion",
+          "status": "PASS",
+          "detail": "WebP detected"
+        }
+      ],
+      "overall": "FAIL"
+    },
+    "C_images": {
+      "checks": [
+        {
+          "id": "C_img",
+          "name": "oversized_png",
+          "status": "FAIL",
+          "detail": "BASE-main-logo-med.png \u2014 16KB"
+        },
+        {
+          "id": "C_img",
+          "name": "oversized_png",
+          "status": "FAIL",
+          "detail": "White-BASE-main-logo-med.png \u2014 20KB"
+        },
+        {
+          "id": "C_img",
+          "name": "oversized_png",
+          "status": "FAIL",
+          "detail": "cropped-Favicon-192x192.png \u2014 11KB"
+        },
+        {
+          "id": "C_img",
+          "name": "oversized_png",
+          "status": "FAIL",
+          "detail": "cropped-Favicon-270x270.png \u2014 17KB"
+        },
+        {
+          "id": "C_img",
+          "name": "oversized_png",
+          "status": "FAIL",
+          "detail": "cropped-Favicon.png \u2014 19KB"
+        },
+        {
+          "id": "C_img",
+          "name": "oversized_png",
+          "status": "FAIL",
+          "detail": "Visia-Machine_update2-1.png \u2014 108KB"
+        },
+        {
+          "id": "C_critical",
+          "name": "critical_image_Evolve-X",
+          "status": "WARN",
+          "detail": "Evolve-X not found or still oversized"
+        },
+        {
+          "id": "C_critical",
+          "name": "critical_image_Saint-Jane-Beauty-Serum",
+          "status": "WARN",
+          "detail": "Saint-Jane-Beauty-Serum not found or still oversized"
+        },
+        {
+          "id": "C_critical",
+          "name": "critical_image_BASE-logo-mobile",
+          "status": "WARN",
+          "detail": "BASE-logo-mobile not found or still oversized"
+        },
+        {
+          "id": "C_critical",
+          "name": "critical_image_BaseSpa-243",
+          "status": "WARN",
+          "detail": "BaseSpa-243 not found or still oversized"
+        },
+        {
+          "id": "C_critical",
+          "name": "critical_image_BaseSpa-274",
+          "status": "WARN",
+          "detail": "BaseSpa-274 not found or still oversized"
+        },
+        {
+          "id": "C_critical",
+          "name": "critical_image_Brandi-Robertson",
+          "status": "WARN",
+          "detail": "Brandi-Robertson not found or still oversized"
+        }
+      ],
+      "summary": "6 oversized PNGs, ~5185KB total images"
+    },
+    "D_layout": {
+      "checks": [
+        {
+          "id": "D1",
+          "name": "cls_fix_min_height",
+          "status": "PASS",
+          "detail": "min-height CSS found"
+        },
+        {
+          "id": "D_vp",
+          "name": "viewport_meta",
+          "status": "PASS",
+          "detail": "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0\" />"
+        },
+        {
+          "id": "D_dom",
+          "name": "dom_size",
+          "status": "PASS",
+          "detail": "~1310 DOM elements"
+        },
+        {
+          "id": "D_html",
+          "name": "html_size",
+          "status": "WARN",
+          "detail": "1166KB HTML"
+        }
+      ],
+      "overall": "WARN"
+    },
+    "E_accessibility": {
+      "checks": [
+        {
+          "id": "E2",
+          "name": "viewport_zoom",
+          "status": "FAIL",
+          "detail": "Zoom blocked"
+        },
+        {
+          "id": "E3",
+          "name": "main_landmark",
+          "status": "FAIL",
+          "detail": "No <main> landmark"
+        },
+        {
+          "id": "E4",
+          "name": "heading_order",
+          "status": "FAIL",
+          "detail": "Skip detected: H1 \u2192 H4"
+        },
+        {
+          "id": "E5",
+          "name": "generic_link_text",
+          "status": "FAIL",
+          "detail": "2 'LEARN MORE' links found"
+        }
+      ],
+      "overall": "FAIL"
+    },
+    "F_seo": {
+      "checks": [
+        {
+          "id": "F1",
+          "name": "meta_title",
+          "status": "PASS",
+          "detail": "Medical Spa in Chesterton, IN | BASE Spa &amp; Wellness"
+        },
+        {
+          "id": "F2",
+          "name": "meta_description",
+          "status": "PASS",
+          "detail": "BASE Spa &amp; Wellness in Chesterton, IN, provides medspa &amp; wellness services from IV nutrition"
+        },
+        {
+          "id": "F3",
+          "name": "canonical",
+          "status": "PASS",
+          "detail": "https://www.basespawellness.com/"
+        },
+        {
+          "id": "F4",
+          "name": "indexability",
+          "status": "PASS",
+          "detail": "Indexable"
+        }
+      ],
+      "overall": "PASS"
+    },
+    "G_third_party": {
+      "checks": [
+        {
+          "id": "G1",
+          "name": "trustindex_cache",
+          "status": "FAIL",
+          "detail": "Cache: none \u2014 TTL: 0"
+        },
+        {
+          "id": "G2",
+          "name": "easypiechart_js",
+          "status": "FAIL",
+          "detail": "easypiechart.js still loading"
+        },
+        {
+          "id": "G3",
+          "name": "fontawesome_loading",
+          "status": "PASS",
+          "detail": "FontAwesome detected"
+        },
+        {
+          "id": "G_scripts",
+          "name": "script_count",
+          "status": "WARN",
+          "detail": "47 external scripts loaded"
+        },
+        {
+          "id": "G_fonts",
+          "name": "font_count",
+          "status": "WARN",
+          "detail": "30 font files loaded"
+        }
+      ],
+      "overall": "WARN"
+    }
+  },
+  "overall": "FAIL"
+}

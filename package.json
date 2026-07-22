@@ -1,0 +1,19 @@
+{
+  "name": "button-checker",
+  "version": "1.0.0",
+  "description": "Playwright-based button UI checker for mobile, tablet, and desktop views",
+  "type": "module",
+  "scripts": {
+    "check": "node button-checker.js",
+    "check:images": "node broken-images-checker.js",
+    "dashboard": "node server.js",
+    "qa:values": "node qa/run.js",
+    "qa:sweep": "node qa/run.js",
+    "qa:full": "node qa/run.js",
+    "qa:playwright": "node qa-full-playwright.js"
+  },
+  "dependencies": {
+    "cloakbrowser": "^0.4.12",
+    "playwright": "^1.60.0"
+  }
+}

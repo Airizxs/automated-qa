@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Button Test Page</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: system-ui, sans-serif; padding: 20px; background: #f8fafc; color: #0f172a; }
+  h1 { font-size: 24px; margin-bottom: 20px; }
+  h2 { font-size: 18px; margin: 20px 0 10px; color: #475569; }
+  section { margin-bottom: 30px; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; background: white; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; align-items: center; }
+  .btn { padding: 10px 20px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; }
+  .btn-primary { background: #3b82f6; color: white; }
+  .btn-danger { background: #ef4444; color: white; }
+  .btn-small { padding: 4px 8px; font-size: 11px; }
+  .btn-large { padding: 16px 32px; font-size: 18px; }
+  .btn-outline { background: transparent; border: 2px solid #3b82f6; color: #3b82f6; }
+  .btn-disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-hidden { display: none; }
+  .btn-invisible { visibility: hidden; }
+  .btn-tiny { padding: 2px 4px; font-size: 9px; }
+  input[type="submit"] { padding: 12px 24px; background: #22c55e; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; }
+  a.btn-link { display: inline-block; padding: 10px 20px; background: #8b5cf6; color: white; text-decoration: none; border-radius: 6px; }
+  .card { background: #f1f5f9; padding: 15px; border-radius: 6px; margin: 10px 0; }
+  .badge-group { display: flex; gap: 5px; flex-wrap: wrap; }
+  .badge-group button { padding: 8px 16px; border: 1px solid #cbd5e1; background: white; border-radius: 20px; cursor: pointer; }
+  .mobile-bottom-bar { display: flex; justify-content: space-around; background: white; border-top: 1px solid #e2e8f0; padding: 8px 0; position: fixed; bottom: 0; left: 0; right: 0; }
+  .mobile-bottom-bar button { background: none; border: none; padding: 8px; font-size: 12px; color: #64748b; cursor: pointer; }
+  .mobile-bottom-bar button.active { color: #3b82f6; }
+</style>
+</head>
+<body>
+
+<h1>🧪 Button Checker Test Page</h1>
+
+<section>
+  <h2>✅ Normal Buttons (Dapat OK)</h2>
+  <div class="btn-row">
+    <button class="btn btn-primary">Submit</button>
+    <button class="btn btn-danger">Delete</button>
+    <button class="btn btn-outline">Cancel</button>
+    <button class="btn btn-large">Large Button</button>
+    <button class="btn">Default</button>
+  </div>
+</section>
+
+<section>
+  <h2>⚠️ Problematic Buttons</h2>
+  <div class="btn-row">
+    <button class="btn btn-tiny">Tiny</button>
+    <button class="btn btn-disabled">Disabled</button>
+    <button class="btn btn-hidden">Hidden</button>
+    <button class="btn btn-invisible">Invisible</button>
+    <button style="width:30px;height:30px;">XS</button>
+  </div>
+</section>
+
+<section>
+  <h2>🔗 Link & Input Buttons</h2>
+  <div class="btn-row">
+    <a href="#" class="btn-link" role="button">Link Button</a>
+    <input type="submit" value="Send Form">
+    <input type="button" value="Click Me">
+  </div>
+</section>
+
+<section>
+  <h2>🏷️ Pill / Badge Buttons</h2>
+  <div class="badge-group">
+    <button>Tag 1</button>
+    <button>Long Tag Name</button>
+    <button>Filter</button>
+    <button>Category</button>
+  </div>
+</section>
+
+<section>
+  <h2>📱 Bottom Nav (Mobile)</h2>
+  <div class="card">
+    <p style="margin-bottom:10px;color:#64748b;font-size:13px;">Simulated mobile bottom navigation bar:</p>
+    <div style="display:flex;justify-content:space-around;background:white;border:1px solid #e2e8f0;border-radius:12px;padding:8px 0;">
+      <button class="active">🏠 Home</button>
+      <button>🔍 Search</button>
+      <button>🛒 Cart</button>
+      <button>👤 Profile</button>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>🎨 Colored Variants</h2>
+  <div class="btn-row">
+    <button style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:12px 24px;border:none;border-radius:8px;font-size:15px;">Gradient</button>
+    <button style="background:#1e293b;color:white;padding:10px 20px;border:2px solid #38bdf8;border-radius:4px;">Dark + Border</button>
+    <button style="background:transparent;color:#0f172a;padding:10px 20px;border:1px solid #0f172a;border-radius:0;font-weight:600;">Ghost</button>
+  </div>
+</section>
+
+</body>
+</html>

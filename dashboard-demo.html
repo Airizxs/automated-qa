@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QA Dashboard Demo</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;padding:20px}
+    .container{max-width:1200px;margin:0 auto}
+    h1{font-size:24px;margin-bottom:8px}
+    .subtitle{color:#94a3b8;font-size:14px;margin-bottom:24px}
+    .filters{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:32px;padding:16px;background:#1e293b;border-radius:8px;border:1px solid #334155}
+    .filter-group{display:flex;flex-direction:column;gap:6px}
+    label{font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px}
+    select{padding:8px 12px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:14px;min-width:160px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+    .card{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:20px}
+    .card-title{font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+    .card-value{font-size:32px;font-weight:700;color:#38bdf8;margin-bottom:4px}
+    .card-label{font-size:13px;color:#64748b}
+    .card.unfiltered{border-color:#475569}
+    .card.unfiltered .card-value{color:#e2e8f0}
+    .legend{margin-top:32px;padding:16px;background:#1e293b;border-radius:8px;border:1px solid #334155;font-size:13px;color:#94a3b8}
+    .legend code{background:#0f172a;padding:2px 6px;border-radius:4px}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>QA Dashboard Demo</h1>
+    <div class="subtitle">Change filters and watch the numbers update</div>
+
+    <div class="filters">
+      <div class="filter-group">
+        <label for="channel-filter">Traffic Channel</label>
+        <select id="channel-filter" data-testid="channel-filter">
+          <option value="all">All Channels</option>
+          <option value="organic">Organic</option>
+          <option value="paid">Paid</option>
+          <option value="social">Social</option>
+          <option value="direct">Direct</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="date-filter">Date Range</label>
+        <select id="date-filter" data-testid="date-filter">
+          <option value="7">Last 7 days</option>
+          <option value="30">Last 30 days</option>
+          <option value="90">Last 90 days</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card" data-testid="card-sessions">
+        <div class="card-title">Sessions</div>
+        <p class="card-value" data-testid="kpi-sessions">0</p>
+        <div class="card-label" data-testid="label-sessions">Total sessions</div>
+      </div>
+
+      <div class="card" data-testid="card-conversion">
+        <div class="card-title">Conversion Rate</div>
+        <p class="card-value" data-testid="kpi-conversion">0%</p>
+        <div class="card-label" data-testid="label-conversion">Goal completions / sessions</div>
+      </div>
+
+      <div class="card" data-testid="card-device-mix">
+        <div class="card-title">Device Mix — Mobile</div>
+        <p class="card-value" data-testid="kpi-device-mobile">0%</p>
+        <div class="card-label" data-testid="label-device-mobile">Mobile share</div>
+      </div>
+
+      <div class="card unfiltered" data-testid="card-total-users">
+        <div class="card-title">Total Users</div>
+        <p class="card-value" data-testid="kpi-total-users">0</p>
+        <div class="card-label" data-testid="label-total-users">Unfiltered count</div>
+      </div>
+
+      <div class="card" data-testid="card-avg-duration">
+        <div class="card-title">Avg Session Duration</div>
+        <p class="card-value" data-testid="kpi-avg-duration">0:00</p>
+        <div class="card-label" data-testid="label-avg-duration">Average time on site</div>
+      </div>
+
+      <div class="card unfiltered" data-testid="card-revenue-goal">
+        <div class="card-title">Revenue Goal</div>
+        <p class="card-value" data-testid="kpi-revenue-goal">$0</p>
+        <div class="card-label" data-testid="label-revenue-goal">Monthly target</div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <strong>Legend:</strong>
+      <span style="color:#38bdf8">Blue cards</span> respond to filter changes.
+      <span style="color:#e2e8f0">White cards</span> are <code>unfiltered-labeled</code> — value stays the same, label reflects the filter.
+    </div>
+  </div>
+
+  <script>
+    // Deterministic pseudo-random so QA can reason about values
+    function hash(str) {
+      let h = 2166136261;
+      for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h += (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24);
+      }
+      return Math.abs(h);
+    }
+
+    function seededRandom(seed) {
+      const x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    }
+
+    function formatNumber(n) {
+      return n.toLocaleString('en-US');
+    }
+
+    function formatDuration(seconds) {
+      const m = Math.floor(seconds / 60);
+      const s = Math.floor(seconds % 60);
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function getValues(channel, dateRange) {
+      const base = hash(`${channel}-${dateRange}`);
+
+      // Cards that respond to filters
+      const sessions = Math.floor(seededRandom(base + 1) * 50000) + 1000;
+      const conversion = (seededRandom(base + 2) * 8 + 0.5).toFixed(2);
+      const mobileShare = Math.floor(seededRandom(base + 3) * 60) + 20;
+      const avgDuration = Math.floor(seededRandom(base + 4) * 300) + 30;
+
+      // Unfiltered-labeled cards: value stays the same regardless of filter, label changes
+      const totalUsers = 124589;
+      const revenueGoal = 45000;
+
+      return {
+        sessions,
+        conversion,
+        mobileShare,
+        avgDuration,
+        totalUsers,
+        revenueGoal,
+      };
+    }
+
+    function updateDashboard() {
+      const channel = document.getElementById('channel-filter').value;
+      const dateRange = document.getElementById('date-filter').value;
+      const v = getValues(channel, dateRange);
+
+      document.querySelector('[data-testid="kpi-sessions"]').textContent = formatNumber(v.sessions);
+      document.querySelector('[data-testid="label-sessions"]').textContent = `Sessions — ${channel} — ${dateRange}d`;
+
+      document.querySelector('[data-testid="kpi-conversion"]').textContent = `${v.conversion}%`;
+      document.querySelector('[data-testid="label-conversion"]').textContent = `Conversion — ${channel} — ${dateRange}d`;
+
+      document.querySelector('[data-testid="kpi-device-mobile"]').textContent = `${v.mobileShare}%`;
+      document.querySelector('[data-testid="label-device-mobile"]').textContent = `Mobile share — ${channel} — ${dateRange}d`;
+
+      document.querySelector('[data-testid="kpi-avg-duration"]').textContent = formatDuration(v.avgDuration);
+      document.querySelector('[data-testid="label-avg-duration"]').textContent = `Avg duration — ${channel} — ${dateRange}d`;
+
+      // Unfiltered-labeled: same value, label changes
+      document.querySelector('[data-testid="kpi-total-users"]').textContent = formatNumber(v.totalUsers);
+      document.querySelector('[data-testid="label-total-users"]').textContent = `Unfiltered — ${channel} — ${dateRange}d`;
+
+      document.querySelector('[data-testid="kpi-revenue-goal"]').textContent = `$${formatNumber(v.revenueGoal)}`;
+      document.querySelector('[data-testid="label-revenue-goal"]').textContent = `Monthly target — ${channel} — ${dateRange}d`;
+    }
+
+    document.getElementById('channel-filter').addEventListener('change', updateDashboard);
+    document.getElementById('date-filter').addEventListener('change', updateDashboard);
+
+    updateDashboard();
+  </script>
+</body>
+</html>

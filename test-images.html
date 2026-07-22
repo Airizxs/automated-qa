@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Broken Images Test Page</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 20px; line-height: 1.6; }
+    .card { border: 1px solid #ccc; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    .broken-bg {
+      width: 200px;
+      height: 100px;
+      background-image: url('https://httpbin.org/status/404');
+      background-size: cover;
+      border: 1px solid red;
+    }
+    .ok-bg {
+      width: 200px;
+      height: 100px;
+      background-image: url('https://picsum.photos/200/100?random=2');
+      background-size: cover;
+      border: 1px solid green;
+    }
+    img { max-width: 100%; height: auto; display: block; margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <h1>Broken Images Checker — Test Page</h1>
+
+  <div class="card">
+    <h2>Working image</h2>
+    <img src="https://picsum.photos/300/200?random=1" alt="Working random image">
+  </div>
+
+  <div class="card">
+    <h2>Broken 404 image</h2>
+    <img src="https://httpbin.org/status/404" alt="This image is broken" width="300" height="200">
+  </div>
+
+  <div class="card">
+    <h2>Missing src attribute</h2>
+    <img alt="Missing src" width="100" height="100">
+  </div>
+
+  <div class="card">
+    <h2>Lazy loaded image (should load)</h2>
+    <img data-src="https://picsum.photos/300/200?random=3" alt="Lazy loaded image" loading="lazy" class="lazy-img" width="300" height="200">
+  </div>
+
+  <div class="card">
+    <h2>Picture with source</h2>
+    <picture>
+      <source srcset="https://picsum.photos/300/200?random=4" type="image/jpeg">
+      <img src="https://picsum.photos/300/200?random=5" alt="Picture fallback">
+    </picture>
+  </div>
+
+  <div class="card">
+    <h2>Broken CSS background</h2>
+    <div class="broken-bg"></div>
+  </div>
+
+  <div class="card">
+    <h2>Working CSS background</h2>
+    <div class="ok-bg"></div>
+  </div>
+
+  <div class="card">
+    <h2>Inline SVG</h2>
+    <svg width="100" height="100" viewBox="0 0 100 100" aria-label="Test star">
+      <polygon points="50,5 61,40 98,40 68,62 79,97 50,75 21,97 32,62 2,40 39,40" fill="gold"/>
+    </svg>
+  </div>
+
+  <script>
+    // Simple lazy loader
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('img[data-src]').forEach(img => {
+        img.src = img.dataset.src;
+      });
+    });
+  </script>
+</body>
+</html>
