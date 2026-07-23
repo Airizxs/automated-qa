@@ -193,40 +193,41 @@ npm run dashboard
   Report: reports/report-example.com-2026-07-10_12-34-56.html
 ```
 
-### Node.js Playwright QA (npm run qa:playwright)
+### Test Bank — FULL Suite (run_test_bank.py --suite FULL)
 
 ```
-=== Desktop (1280x800) ===
-  Console errors: 1
-  Images: 26 total, 0 broken, 0 missing alt
-  WP Rocket Critical CSS: false
-  WP Rocket Delay JS: true
-  SEO Title: Medical Spa in Chesterton, IN | BASE Spa & Wellness
-  SEO H1: Medical Spa, Day Spa, & Wellness
-  Sticky Menu: Not detected
-  Scripts: 49, Fonts: 10
+$ python3 run_test_bank.py --suite FULL https://www.basespawellness.com
 
-=== Tablet (768x1024) ===
-  Console errors: 4
-  Images: 26 total, 0 broken, 0 missing alt
+Running FULL suite: 47 tests on https://www.basespawellness.com
+================================================================================
+
+───────────────────────────────────────────────────────────────────────────────
+  FULL SUITE RESULTS
+───────────────────────────────────────────────────────────────────────────────
+ID         Area      Object               Status   Severity   Title
+───────────────────────────────────────────────────────────────────────────────
+TC-01.1    Static    Title Tag            PASS     Critical   Title: Optimal
+TC-01.2    Static    Title Tag            PASS     Critical   Title: Too long
+TC-01.4    Static    Title Tag            PASS     Critical   Title: Missing
+TC-02.1    Static    Meta Description     FAIL     Critical   Meta Desc: Optimal
+TC-02.4    Static    Meta Description     PASS     Critical   Meta Desc: Missing
+TC-03.1    Static    Headings             PASS     Critical   Headings: Single H1
+TC-04.1    Static    Schema Markup        PASS     Critical   Schema: JSON-LD
+TC-05.1    Static    Image Alt Text       PASS     Critical   Image Alt: Present
+TC-06.1    Static    Viewport             PASS     Critical   Viewport: Standard
+TC-07.1    Static    Robots Meta          PASS     Critical   Indexability
+TC-08.1    Static    Canonical Tag        PASS     Critical   Canonical
+TC-11.1    Static    SSL/HTTPS            PASS     Critical   SSL Valid
+TC-12.1    Dynamic   Image Loading        PASS     Critical   All Load
+TC-13.1    Dynamic   Hero Image           PASS     Critical   Hero found
+TC-15.1    Dynamic   Menu Clickability    PASS     Critical   Links found
+TC-19.1    CDP       Console Errors       PASS     Critical   No errors
+TC-21.1    CDP       Core Web Vitals      PASS     Critical   LCP good
+TC-22.1    Visual    Sticky Menu          PASS     Critical   Sticky works
   ...
-
-=== Mobile (375x812) ===
-  Console errors: 4
-  ...
-
-============================================================
-QA FULL REPORT
-============================================================
-URL: https://www.basespawellness.com
-Viewports: Desktop, Tablet, Mobile
-
-Results: 32 PASS / 21 FAIL / 19 WARN / 3 N/A
-Overall: FAIL
-
-Report: reports/qa-full-1784677324185/report.html
-JSON: reports/qa-full-1784677324185/report.json
-============================================================
+───────────────────────────────────────────────────────────────────────────────
+  PASS: 32 | FAIL: 2 | WARN: 1 | MANUAL: 12 | TOTAL: 47
+  Score: 91%
 ```
 
 ---
