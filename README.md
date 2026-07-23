@@ -150,49 +150,6 @@ npm run dashboard
 
 ## Example Output
 
-### Python (main.py)
-
-```
-  URL > https://example.com
-
-  Running SEO audit on: https://example.com
-  ..................................................
-
-  -- STATIC CHECKS (HTML) --
-  TITLE                      PASS  |  Chars: 52 | Optimal
-  META DESCRIPTION           PASS  |  Chars: 148 | Optimal
-  HEADINGS                   PASS  |  H1: 1 | Total: 8
-  SCHEMA MARKUP              PASS  |  Found: 3
-  IMAGE ALT TEXT             FAIL  |  Missing: 5/23
-  RESPONSIVE (VIEWPORT)      PASS
-  INDEXABILITY               PASS
-  CANONICAL TAG              PASS
-  INTERNAL LINKS             PASS  |  Total: 42 | Broken: 0
-  OG TAGS                    PASS  |  Found: 6/6
-  SSL/HTTPS                  PASS
-
-  -- DYNAMIC CHECKS (PLAYWRIGHT) --
-  IMAGE LOADING              PASS  |  Total: 23 | Flagged: 0
-  HERO (DESKTOP)             PASS  |  Method: heuristic
-  HERO (IPAD)                PASS  |  Method: heuristic
-  HERO (MOBILE)              PASS  |  Method: heuristic
-  BREADCRUMBS                PASS  |  Found: True
-  MENU CLICKABILITY          PASS  |  Links: 18
-  FONT CONSISTENCY           PASS  |  Fonts: 2
-  BUTTON STYLE               PASS  |  Variations: 3
-  CONTACT FORMS              PASS  |  Found: 2
-
-  -- CDP --
-  CONSOLE ERRORS             FAIL  |  Errors: 2 | Warnings: 5
-  FAILED REQUESTS            PASS  |  Failed: 0/45
-  PERFORMANCE SCORE          PASS  |  Score: 78/100
-  CLS                        PASS  |  0.012
-  FCP                        PASS  |  1.45s
-  TTFB                       PASS  |  0.23s
-
-  Report: reports/report-example.com-2026-07-10_12-34-56.html
-```
-
 ### Test Bank — FULL Suite (run_test_bank.py --suite FULL)
 
 ```
