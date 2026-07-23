@@ -1,162 +1,53 @@
-# SEO & QA Audit Tool v2.0
+# SEO & QA Audit Tool
 
-Automated website audit — checks SEO, accessibility, images, layout, performance, WP Rocket, and more across Desktop, iPad, and Mobile. Uses Playwright (browser-based) for real rendered DOM checks and Chrome DevTools Protocol (CDP) for performance metrics.
+Automated website audit — 30 checks across SEO, accessibility, images, layout, performance, and more using Playwright + Chrome DevTools Protocol.
 
 ---
 
-## Quick Start (Python — Main Tool)
+## Quick Start
 
 ```bash
-# 1. Clone
 git clone https://github.com/Airizxs/automated-qa.git
 cd automated-qa
-
-# 2. Install dependencies
 pip install -r requirements.txt
-
-# 3. Install Playwright browsers (one-time)
 playwright install chromium
-
-# 4. Run on any site
 python3 main.py https://example.com
 ```
 
-### Quick Start (Node.js — Extended QA)
-
-```bash
-# 1. Install dependencies
-npm install && npx playwright install chromium
-
-# 2. Run full Playwright QA
-npm run qa:playwright -- https://example.com
-```
-
 ---
 
-## Usage
+## Commands
 
 ```bash
-# Single URL (full audit)
-python3 main.py https://www.basespawellness.com
+# Full audit (static + dynamic + CDP + visual)
+python3 main.py https://basespawellness.com
 
-# Single URL (quick — skips CDP, image loading, link verification)
+# Quick audit (skips CDP, faster)
 python3 main.py --quick example.com
 
-# Batch — multiple URLs (browser reused across URLs for speed)
-python3 main.py --quick example.com another-site.com third-site.com
+# Batch multiple URLs
+python3 main.py example.com another.com third.com
 
-# Batch — read URLs from file (one per line, or CSV first column)
-python3 main.py --file urls.txt
-
-# Interactive mode — paste URLs one by one
-python3 main.py
+# Test bank — run by suite
+python3 run_test_bank.py --suite SMOKE https://example.com   # 28 critical tests
+python3 run_test_bank.py --suite REG https://example.com     # 58 standard tests
+python3 run_test_bank.py --suite FULL https://example.com    # 89 all tests
 ```
-
-### Flags
 
 | Flag | Effect |
 |---|---|
-| `--quick` | Skip CDP checks, image loading, and link verification. ~2-3x faster. |
-| `--pdf` | Generate PDF report alongside HTML and JSON. |
-| `--email <address>` | Send report via email (requires SMTP_* env vars). |
-| `--file <path>` | Read URLs from file (one per line or CSV first column). |
-
----
-
-## All Commands
-
-### Python (main.py + scripts)
-
-| Command | What It Checks |
-|---|---|
-| `python3 main.py <url>` | Full SEO + QA audit (static, dynamic, CDP) |
-| `python3 main.py --quick <url>` | Fast audit — skips CDP |
-| `python3 main.py --pdf <url>` | Full audit + PDF report |
-| `python3 scripts/qa_automated.py full-report <domain>` | PageSpeed API + HTML curl checks |
-| `python3 scripts/qa_automated.py psi <domain>` | PageSpeed Insights only |
-
-### Node.js (Playwright — Browser-Based)
-
-| Command | What It Checks |
-|---|---|
-| `npm run qa:playwright -- <url>` | Full QA — 25+ checks across 3 viewports |
-| `npm run check -- <url>` | Button size, visibility, touch targets |
-| `npm run check:images -- <url>` | Broken images, oversized PNGs, missing alt |
-| `npm run qa:full -- <url>` | Filter value changes + section sweep |
-| `npm run qa:values -- <url>` | Filter/KPI card value change tests |
-| `npm run qa:sweep -- <url>` | Section-by-section visual sweep |
-
-### Dashboard (Web UI)
-
-```bash
-npm run dashboard
-# Open http://localhost:8766
-```
-
----
-
-## What It Checks
-
-### Static Checks (HTML)
-| Check | What It Detects |
-|---|---|
-| Title tag | Present, character count, SEO status |
-| Meta description | Present, character count, SEO status |
-| Headings | H1 count, total count, hierarchy |
-| Schema markup | JSON-LD count, schema types |
-| Image alt text | Missing alt attributes |
-| Viewport meta | Present, content |
-| Indexability | No noindex, robots meta |
-| Canonical tag | Present, matches URL |
-| Internal links | Total count, broken links |
-| Open Graph tags | og:title, og:description, og:image, og:url, og:type, og:site_name |
-| SSL/HTTPS | Redirect from HTTP to HTTPS |
-
-### Dynamic Checks (Playwright Browser)
-| Check | What It Detects |
-|---|---|
-| Image loading | Broken images across all viewports |
-| Hero banner | Loaded correctly on Desktop, iPad, Mobile |
-| Breadcrumbs | Present (schema or element detection) |
-| Menu clickability | Navigation link count |
-| Font consistency | Unique font family count |
-| Button style | CSS style variations |
-| Contact forms | Form count (Gravity Forms, CF7, etc.) |
-| Sticky menu | Desktop, iPad, Mobile |
-
-### CDP Checks (Chrome DevTools Protocol)
-| Check | What It Detects |
-|---|---|
-| Console errors | JS errors during page load |
-| Failed requests | HTTP 4xx/5xx, broken network requests |
-| Performance score | Simulated Lighthouse-style 0-100 |
-| CLS | Cumulative Layout Shift |
-| FCP | First Contentful Paint (seconds) |
-| TTFB | Time to First Byte (seconds) |
-
-### Extended QA Checks (Playwright — npm run qa:playwright)
-| Section | Checks |
-|---|---|
-| **Console** | JS errors during page load |
-| **WP Rocket** | Critical CSS, Delay JS, LazyLoad, WebP |
-| **Images** | Broken images, oversized PNGs, missing alt |
-| **Layout** | Viewport meta, pinch-zoom, DOM size, HTML size |
-| **Accessibility** | Heading order, <main> landmark, generic links |
-| **SEO** | Title, meta description, canonical, noindex, H1 |
-| **Third-Party** | Trustindex, easypiechart, script/font count |
-| **Screenshots** | Full-page capture on Desktop, iPad, Mobile |
+| `--quick` | Skip CDP checks — 2-3x faster |
+| `--pdf` | Generate PDF report |
+| `--file <path>` | Read URLs from file |
 
 ---
 
 ## Example Output
 
-### Test Bank — FULL Suite (run_test_bank.py --suite FULL)
-
 ```
-$ python3 run_test_bank.py --suite FULL https://www.basespawellness.com
+$ python3 run_test_bank.py --suite FULL https://basespawellness.com
 
-Running FULL suite: 47 tests on https://www.basespawellness.com
-================================================================================
+Running FULL suite: 47 tests on https://basespawellness.com
 
 ───────────────────────────────────────────────────────────────────────────────
   FULL SUITE RESULTS
@@ -164,41 +55,26 @@ Running FULL suite: 47 tests on https://www.basespawellness.com
 ID         Area      Object               Status   Severity   Title
 ───────────────────────────────────────────────────────────────────────────────
 TC-01.1    Static    Title Tag            PASS     Critical   Title: Optimal
-TC-01.2    Static    Title Tag            PASS     Critical   Title: Too long
-TC-01.4    Static    Title Tag            PASS     Critical   Title: Missing
 TC-02.1    Static    Meta Description     FAIL     Critical   Meta Desc: Optimal
-TC-02.4    Static    Meta Description     PASS     Critical   Meta Desc: Missing
-TC-03.1    Static    Headings             PASS     Critical   Headings: Single H1
-TC-04.1    Static    Schema Markup        PASS     Critical   Schema: JSON-LD
-TC-05.1    Static    Image Alt Text       PASS     Critical   Image Alt: Present
-TC-06.1    Static    Viewport             PASS     Critical   Viewport: Standard
-TC-07.1    Static    Robots Meta          PASS     Critical   Indexability
-TC-08.1    Static    Canonical Tag        PASS     Critical   Canonical
-TC-11.1    Static    SSL/HTTPS            PASS     Critical   SSL Valid
-TC-12.1    Dynamic   Image Loading        PASS     Critical   All Load
-TC-13.1    Dynamic   Hero Image           PASS     Critical   Hero found
+TC-03.1    Static    Headings             PASS     Critical   Single H1
+TC-04.1    Static    Schema Markup        PASS     Critical   JSON-LD present
+TC-05.1    Static    Image Alt Text       PASS     Critical   All present
+TC-06.1    Static    Viewport             PASS     Critical   Standard
+TC-07.1    Static    Robots Meta          PASS     Critical   Indexable
+TC-08.1    Static    Canonical Tag        PASS     Critical   Matches URL
+TC-11.1    Static    SSL/HTTPS            PASS     Critical   Valid
+TC-12.1    Dynamic   Image Loading        PASS     Critical   All load
+TC-13.1    Dynamic   Hero Image           PASS     Critical   Found
 TC-15.1    Dynamic   Menu Clickability    PASS     Critical   Links found
 TC-19.1    CDP       Console Errors       PASS     Critical   No errors
 TC-21.1    CDP       Core Web Vitals      PASS     Critical   LCP good
-TC-22.1    Visual    Sticky Menu          PASS     Critical   Sticky works
+TC-22.1    Visual    Sticky Menu          PASS     Critical   Works
   ...
 ───────────────────────────────────────────────────────────────────────────────
   PASS: 32 | FAIL: 2 | WARN: 1 | MANUAL: 12 | TOTAL: 47
   Score: 91%
-```
 
----
-
-## Run Tests
-
-```bash
-# Python tests
-pytest test_seo.py -v
-cd SCRIPT/Automated-QA && pytest test_seo.py -v
-
-# Node.js tests
-npm run check:images -- https://www.basespawellness.com
-npm run check -- https://www.basespawellness.com
+  Previous: 89.5% (B) | Now: 91.0% (A) | ↑ +1.5%
 ```
 
 ---
@@ -206,98 +82,4 @@ npm run check -- https://www.basespawellness.com
 ## Requirements
 
 - **Python** 3.9+
-- **Node.js** 20+
-- **Playwright** (Chrome/Chromium browser)
-- **Dependencies:** playwright, requests, pytest + npm packages
-
----
-
-## Project Structure
-
-```
-main.py                         # Main Python QA tool (CLI + batch)
-seo_audit.py                    # SEO audit module
-test_seo.py                     # Python test suite
-requirements.txt                # Python dependencies
-qa-full-playwright.js           # Full Playwright QA (recommended)
-broken-images-checker.js        # Image checker
-button-checker.js               # Button checker
-server.js                       # Dashboard web UI
-qa/                             # Dashboard QA pipeline
-  registry/  helpers/  specs/   # Filter/card testing
-scripts/
-  qa_automated.py               # PageSpeed API + HTML checks
-  performance_qa.py             # Legacy PSI check
-SCRIPT/
-  Automated-QA/                 # Python SEO auditor (Playwright + CDP)
-  Agent-Audit/                  # Agent-browser SEO audit
-.opencode/skills/
-  website-qa/SKILL.md           # OpenCode skill — website QA
-  page-speed-qa/SKILL.md        # OpenCode skill — full QA + checklist
-QA-CHECKLIST.md                 # Ticket #1001 QA results
-PLAN.md                         # Performance audit plan
-reports/                        # Generated reports (HTML, JSON, screenshots)
-```
-
----
-
-## Example Output
-
-```
-$ npm run qa:playwright -- https://www.basespawellness.com
-
-=== Desktop (1280x800) ===
-  Console errors: 1
-  Images: 26 total, 0 broken, 0 missing alt
-  WP Rocket Critical CSS: false
-  WP Rocket Delay JS: true
-  SEO Title: Medical Spa in Chesterton, IN | BASE Spa & Wellness
-  SEO H1: Medical Spa, Day Spa, & Wellness
-  Sticky Menu: Not detected
-  Scripts: 49, Fonts: 10
-
-=== Tablet (768x1024) ===
-  Console errors: 4
-  Images: 26 total, 0 broken, 0 missing alt
-  WP Rocket Critical CSS: false
-  WP Rocket Delay JS: true
-  ...
-
-=== Mobile (375x812) ===
-  Console errors: 4
-  Images: 26 total, 0 broken, 0 missing alt
-  WP Rocket Critical CSS: false
-  WP Rocket Delay JS: true
-  ...
-
-============================================================
-QA FULL REPORT
-============================================================
-URL: https://www.basespawellness.com
-Viewports: Desktop, Tablet, Mobile
-
-Results: 32 PASS / 21 FAIL / 19 WARN / 3 N/A
-
-Overall: FAIL
-
-Report: reports/qa-full-1784677324185/report.html
-JSON: reports/qa-full-1784677324185/report.json
-============================================================
-```
-
----
-
-## Passing Criteria (Automated)
-
-| Check | Target |
-|---|---|
-| Console errors | 0 errors |
-| WP Rocket Critical CSS | Present |
-| Broken images | 0 broken |
-| Missing alt text | 0 missing |
-| Pinch-zoom | Allowed |
-| DOM elements | < 1400 |
-| Heading order | Sequential (H1 > H2 > H3) |
-| <main> element | Present |
-| Title + H1 + Meta desc | Present |
-| Indexability | No noindex |
+- **Playwright** Chromium browser
