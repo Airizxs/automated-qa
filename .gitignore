@@ -4,3 +4,5 @@ reports/
 .DS_Store
 *.pdf
 .venv/
+node_modules/
+node_qa/node_modules/

@@ -22,7 +22,7 @@ from datetime import datetime
 from seo_audit import SEOAuditor
 
 
-def load_test_bank(path="TEST_BANK.csv"):
+def load_test_bank(path="testbank/TEST_BANK.csv"):
     tests = []
     with open(path, "r", newline="") as f:
         reader = csv.DictReader(f)
