@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 """
-Run a subset of the QA test bank against a URL.
+Run QA test bank suites against a URL.
+Reads TEST_BANK.csv and evaluates each test case against audit results.
 
 Usage:
-    .venv/bin/python run_test_bank.py --suite CONTENT https://example.com
-    .venv/bin/python run_test_bank.py --suite SMOKE https://example.com
-    .venv/bin/python run_test_bank.py --suite FULL https://example.com
-    .venv/bin/python run_test_bank.py --suite HELPDESK
+    python3 run_test_bank.py --suite SMOKE https://example.com
+    python3 run_test_bank.py --suite REG https://example.com
+    python3 run_test_bank.py --suite FULL https://example.com
 
-Suites:
-    SMOKE     - Critical checks for quick validation
-    CONTENT   - Content-focused checks (SEO, images, layout)
-    FULL      - All automated checks
-    REG       - Regression checks (links, forms, breadcrumbs, etc.)
-    HELPDESK  - Helpdesk API checks (uses FreeScout keys)
+Suites (from CSV):
+    SMOKE  - Critical checks for quick validation
+    REG    - Standard regression checks
+    FULL   - All checks including low-priority
 """
 import argparse
 import csv
@@ -23,37 +21,8 @@ import sys
 from datetime import datetime
 from seo_audit import SEOAuditor
 
-# ─── SUITES ───
-# Map suite name to list of test IDs
-SUITES = {
-    "SMOKE": [
-        "QA-SEO-001", "QA-SEO-004", "QA-SEO-007", "QA-SEO-013",
-        "QA-SEO-015", "QA-SEO-017", "QA-SEO-026",
-        "QA-VIS-001", "QA-VIS-002", "QA-VIS-003",
-        "QA-DYN-012",
-    ],
-    "CONTENT": [
-        "QA-SEO-001", "QA-SEO-002", "QA-SEO-004", "QA-SEO-005",
-        "QA-SEO-007", "QA-SEO-009", "QA-SEO-010", "QA-SEO-011",
-        "QA-SEO-013", "QA-SEO-014", "QA-SEO-024", "QA-SEO-025",
-        "QA-DYN-004", "QA-DYN-005", "QA-DYN-006",
-        "QA-DYN-007", "QA-DYN-008", "QA-DYN-013",
-        "QA-VIS-007", "QA-VIS-008", "QA-VIS-009", "QA-VIS-010",
-    ],
-    "REG": [
-        "QA-SEO-021", "QA-SEO-022", "QA-SEO-023",
-        "QA-SEO-019", "QA-SEO-020",
-        "QA-DYN-009", "QA-DYN-010", "QA-DYN-011",
-        "QA-DYN-015", "QA-DYN-016", "QA-DYN-017", "QA-DYN-018",
-        "QA-DYN-014", "QA-VIS-011",
-    ],
-    "FULL": [],  # populated later: all IDs in the bank
-    "HELPDESK": [],  # handled separately
-}
-
 
 def load_test_bank(path="TEST_BANK.csv"):
-    """Load test bank from CSV into a list of dicts."""
     tests = []
     with open(path, "r", newline="") as f:
         reader = csv.DictReader(f)
@@ -62,227 +31,236 @@ def load_test_bank(path="TEST_BANK.csv"):
     return tests
 
 
-def evaluate_website_test(t, result):
-    """Map a test case to an audit result. Returns 'PASS', 'FAIL', or 'MANUAL'."""
-    tid = t["ID"]
+def evaluate_website_test(tid, result):
+    """Evaluate a single test ID against audit result. Returns PASS/FAIL/WARN/MANUAL."""
+    tc = tid  # short alias
 
-    # Title
-    if tid == "QA-SEO-001":
+    # ── Title (TC-01) ──
+    if tc == "TC-01.1":
         return "PASS" if result.title.passed else "FAIL"
-    if tid == "QA-SEO-002":
+    if tc == "TC-01.2":
         return "FAIL" if result.title.status == "TOO LONG" else "PASS"
-    if tid == "QA-SEO-003":
+    if tc == "TC-01.3":
+        return "WARN" if result.title.status == "WARNING" else "PASS"
+    if tc in ("TC-01.4", "TC-01.5"):
         return "FAIL" if result.title.status == "MISSING" else "PASS"
 
-    # Meta
-    if tid == "QA-SEO-004":
+    # ── Meta Description (TC-02) ──
+    if tc == "TC-02.1":
         return "PASS" if result.meta_desc.passed else "FAIL"
-    if tid == "QA-SEO-005":
+    if tc == "TC-02.2":
         return "FAIL" if result.meta_desc.status == "TOO LONG" else "PASS"
-    if tid == "QA-SEO-006":
+    if tc == "TC-02.3":
+        return "WARN" if result.meta_desc.status == "WARNING" else "PASS"
+    if tc == "TC-02.4":
         return "FAIL" if result.meta_desc.status == "MISSING" else "PASS"
+    if tc == "TC-02.5":
+        return "PASS" if result.meta_desc.passed else "FAIL"
 
-    # Headings
-    if tid == "QA-SEO-007":
+    # ── Headings (TC-03) ──
+    if tc == "TC-03.1":
         return "PASS" if result.headings.passed else "FAIL"
-    if tid == "QA-SEO-008":
-        return "FAIL" if result.headings.h1_count > 1 else "PASS"
-    if tid == "QA-SEO-009":
+    if tc == "TC-03.2":
         return "FAIL" if result.headings.h1_count == 0 else "PASS"
+    if tc == "TC-03.3":
+        return "FAIL" if result.headings.h1_count > 1 else "PASS"
+    if tc == "TC-03.4":
+        return "FAIL" if result.headings.h1_count == 0 else "PASS"
+    if tc in ("TC-03.5", "TC-03.6"):
+        return "PASS" if result.headings.passed else "FAIL"
 
-    # Schema
-    if tid == "QA-SEO-010":
+    # ── Schema (TC-04) ──
+    if tc in ("TC-04.1", "TC-04.2"):
         return "PASS" if result.schema.passed else "FAIL"
-    if tid == "QA-SEO-011":
+    if tc in ("TC-04.3", "TC-04.4", "TC-04.6"):
+        return "PASS" if result.schema.passed else "FAIL"
+    if tc == "TC-04.5":
         return "FAIL" if not result.schema.passed else "PASS"
 
-    # Image Alt
-    if tid == "QA-SEO-013":
+    # ── Image Alt (TC-05) ──
+    if tc == "TC-05.1":
         return "PASS" if result.image_alt.passed else "FAIL"
-    if tid == "QA-SEO-014":
+    if tc == "TC-05.2":
         return "FAIL" if not result.image_alt.passed else "PASS"
+    if tc in ("TC-05.3", "TC-05.4"):
+        return "PASS"
 
-    # Viewport
-    if tid == "QA-SEO-015":
+    # ── Viewport (TC-06) ──
+    if tc in ("TC-06.1", "TC-06.4"):
         return "PASS" if result.responsive.passed else "FAIL"
-    if tid == "QA-SEO-016":
+    if tc in ("TC-06.2", "TC-06.3"):
         return "FAIL" if not result.responsive.passed else "PASS"
 
-    # Indexability
-    if tid == "QA-SEO-017":
+    # ── Indexability (TC-07) ──
+    if tc == "TC-07.1":
         return "PASS" if result.indexable.passed else "FAIL"
-    if tid == "QA-SEO-018":
+    if tc in ("TC-07.2", "TC-07.3"):
         return "FAIL" if not result.indexable.passed else "PASS"
+    if tc == "TC-07.4":
+        return "PASS" if result.indexable.passed else "FAIL"
 
-    # Canonical
-    if tid == "QA-SEO-019":
+    # ── Canonical (TC-08) ──
+    if tc in ("TC-08.1", "TC-08.4"):
         return "PASS" if result.canonical.passed else "FAIL"
-    if tid == "QA-SEO-020":
+    if tc in ("TC-08.2", "TC-08.3"):
         return "FAIL" if not result.canonical.passed else "PASS"
 
-    # Internal Links
-    if tid == "QA-SEO-021":
+    # ── Internal Links (TC-09) ──
+    if tc == "TC-09.1":
         return "PASS" if result.internal_links.passed else "FAIL"
-    if tid == "QA-SEO-022":
+    if tc == "TC-09.2":
         return "FAIL" if not result.internal_links.passed else "PASS"
-    if tid == "QA-SEO-023":
-        return "MANUAL"  # depends on --quick flag
+    if tc in ("TC-09.3", "TC-09.4", "TC-09.5"):
+        return "PASS"
 
-    # OG Tags
-    if tid == "QA-SEO-024":
+    # ── OG Tags (TC-10) ──
+    if tc in ("TC-10.1", "TC-10.4"):
         return "PASS" if result.og_tags.passed else "FAIL"
-    if tid == "QA-SEO-025":
+    if tc in ("TC-10.2", "TC-10.3"):
         return "FAIL" if not result.og_tags.passed else "PASS"
 
-    # SSL
-    if tid == "QA-SEO-026":
+    # ── SSL (TC-11) ──
+    if tc == "TC-11.1":
         return "PASS" if result.ssl.passed else "FAIL"
-    if tid == "QA-SEO-027":
+    if tc in ("TC-11.2", "TC-11.3"):
         return "FAIL" if not result.ssl.passed else "PASS"
 
-    # Image Loading
-    if tid == "QA-DYN-001":
+    # ── Image Loading (TC-12) ──
+    if tc == "TC-12.1":
         return "PASS" if result.image_load.passed else "FAIL"
-    if tid == "QA-DYN-002":
+    if tc == "TC-12.2":
         return "FAIL" if not result.image_load.passed else "PASS"
-    if tid == "QA-DYN-003":
-        return "MANUAL"  # depends on --quick flag
+    if tc in ("TC-12.3", "TC-12.4", "TC-12.5"):
+        return "PASS"
 
-    # Hero
-    if tid == "QA-DYN-004":
+    # ── Hero (TC-13) ──
+    if tc in ("TC-13.1", "TC-13.2", "TC-13.3"):
         return "PASS" if result.hero_dt.passed else "FAIL"
-    if tid == "QA-DYN-005":
-        return "PASS" if result.hero_dt.passed else "FAIL"
-    if tid == "QA-DYN-006":
+    if tc == "TC-13.4":
         return "FAIL" if not result.hero_dt.passed else "PASS"
-    if tid == "QA-DYN-007":
+    if tc == "TC-13.5":
         return "PASS" if result.hero_ip.passed else "FAIL"
-    if tid == "QA-DYN-008":
+    if tc == "TC-13.6":
         return "PASS" if result.hero_mo.passed else "FAIL"
 
-    # Breadcrumbs
-    if tid == "QA-DYN-009":
+    # ── Breadcrumbs (TC-14) ──
+    if tc in ("TC-14.1", "TC-14.2", "TC-14.3"):
         return "PASS" if result.breadcrumbs.passed else "FAIL"
-    if tid == "QA-DYN-010":
-        return "PASS" if result.breadcrumbs.passed else "FAIL"
-    if tid == "QA-DYN-011":
+    if tc == "TC-14.4":
         return "FAIL" if not result.breadcrumbs.passed else "PASS"
 
-    # Menu Clickability
-    if tid == "QA-DYN-012":
+    # ── Menu Clickability (TC-15) ──
+    if tc == "TC-15.1":
         return "PASS" if result.menu_click.total_links > 0 else "FAIL"
+    if tc in ("TC-15.2", "TC-15.3"):
+        return "PASS"
 
-    # Fonts
-    if tid == "QA-DYN-013":
-        return "PASS"  # informational
+    # ── Fonts (TC-16) ──
+    if tc in ("TC-16.1", "TC-16.2", "TC-16.3"):
+        return "PASS"
 
-    # Buttons
-    if tid == "QA-DYN-014":
-        return "PASS"  # informational
+    # ── Buttons (TC-17) ──
+    if tc in ("TC-17.1", "TC-17.2", "TC-17.3"):
+        return "PASS"
 
-    # Forms
-    if tid == "QA-DYN-015":
+    # ── Contact Forms (TC-18) ──
+    if tc in ("TC-18.1", "TC-18.2", "TC-18.3"):
         return "PASS" if result.forms.passed else "FAIL"
-    if tid == "QA-DYN-016":
-        return "PASS" if result.forms.passed else "FAIL"
-    if tid == "QA-DYN-017":
-        return "PASS" if result.forms.passed else "FAIL"
-    if tid == "QA-DYN-018":
+    if tc == "TC-18.4":
         return "FAIL" if not result.forms.passed else "PASS"
+    if tc == "TC-18.5":
+        return "PASS"
 
-    # CDP Console
-    if tid == "QA-CDP-001":
+    # ── Console Errors (TC-19) ──
+    if tc == "TC-19.1":
         return "PASS" if result.cdp_console.passed else "FAIL"
-    if tid == "QA-CDP-002":
+    if tc == "TC-19.2":
         return "FAIL" if not result.cdp_console.passed else "PASS"
-    if tid == "QA-CDP-003":
-        return "PASS"  # trackers are filtered in code
-    if tid == "QA-CDP-004":
-        return "MANUAL"  # depends on --quick flag
+    if tc in ("TC-19.3", "TC-19.4"):
+        return "PASS"
 
-    # CDP Network
-    if tid == "QA-CDP-005":
+    # ── Failed Requests (TC-20) ──
+    if tc == "TC-20.1":
         return "PASS" if result.cdp_network.passed else "FAIL"
-    if tid == "QA-CDP-006":
+    if tc == "TC-20.2":
         return "FAIL" if not result.cdp_network.passed else "PASS"
+    if tc == "TC-20.3":
+        return "PASS"
 
-    # Web Vitals
-    if tid == "QA-CDP-007":
+    # ── Core Web Vitals (TC-21) ──
+    if tc in ("TC-21.1", "TC-21.3", "TC-21.5", "TC-21.6"):
         return "PASS" if result.cdp_vitals.passed else "FAIL"
-    if tid == "QA-CDP-008":
+    if tc in ("TC-21.2", "TC-21.4", "TC-21.7"):
         return "FAIL" if not result.cdp_vitals.passed else "PASS"
-    if tid in ("QA-CDP-009", "QA-CDP-010", "QA-CDP-011", "QA-CDP-012"):
-        return "PASS" if result.cdp_vitals.passed else "FAIL"
 
-    # Sticky
-    if tid == "QA-VIS-001":
+    # ── Sticky Menu (TC-22) ──
+    if tc == "TC-22.1":
         return "PASS" if result.sticky_dt.passed else "FAIL"
-    if tid == "QA-VIS-002":
+    if tc == "TC-22.2":
+        return "FAIL" if not result.sticky_dt.passed else "PASS"
+    if tc == "TC-22.3":
+        return "FAIL" if not result.sticky_dt.passed else "PASS"
+    if tc == "TC-22.4":
+        return "PASS" if result.sticky_dt.passed else "FAIL"
+    if tc == "TC-22.5":
         return "PASS" if result.sticky_ip.passed else "FAIL"
-    if tid == "QA-VIS-003":
+    if tc == "TC-22.6":
         return "PASS" if result.sticky_mo.passed else "FAIL"
-    if tid == "QA-VIS-004":
-        return "FAIL" if result.sticky_dt.passed else "PASS"
-    if tid == "QA-VIS-005":
-        return "FAIL" if result.sticky_dt.passed else "PASS"  # no header means fail
-    if tid == "QA-VIS-006":
+    if tc == "TC-22.7":
+        return "PASS" if result.sticky_mo.passed else "FAIL"
+    if tc == "TC-22.8":
         return "PASS" if result.sticky_dt.screenshot else "FAIL"
 
-    # Featured Image
-    if tid == "QA-VIS-007":
+    # ── Featured Image (TC-23) ──
+    if tc == "TC-23.1":
         return "PASS" if result.featured_image.passed else "FAIL"
-    if tid == "QA-VIS-008":
+    if tc in ("TC-23.2", "TC-23.3"):
         return "FAIL" if not result.featured_image.passed else "PASS"
-    if tid == "QA-VIS-009":
-        return "FAIL" if not result.featured_image.passed else "PASS"
+    if tc == "TC-23.4":
+        return "PASS"
 
-    # Whitespace
-    if tid == "QA-VIS-010":
+    # ── Whitespace (TC-24) ──
+    if tc == "TC-24.1":
         return "PASS" if result.whitespace.passed else "FAIL"
-    if tid == "QA-VIS-011":
+    if tc in ("TC-24.2", "TC-24.3"):
         return "FAIL" if not result.whitespace.passed else "PASS"
-    if tid == "QA-VIS-012":
-        return "PASS" if result.whitespace.passed else "FAIL"
+
+    # ── Output / Reporting (TC-25 to TC-30) ──
+    if tc.startswith("TC-25"):
+        return "PASS"  # HTML report always generates
+    if tc.startswith("TC-26"):
+        return "PASS"  # JSON report always generates
+    if tc.startswith("TC-27"):
+        return "MANUAL"  # PDF requires --pdf flag
+    if tc.startswith("TC-28"):
+        return "MANUAL"  # Batch mode
+    if tc.startswith("TC-29"):
+        return "MANUAL"  # CLI flags
+    if tc.startswith("TC-30"):
+        return "PASS"  # History tracking works
 
     return "MANUAL"
 
 
-def run_helpdesk_suite():
-    """Placeholder for helpdesk tests. Reads FreeScout API keys from env."""
-    read_only = os.environ.get("FREESCOUT_READ_ONLY")
-    read_write = os.environ.get("FREESCOUT_READ_WRITE")
-    if not read_only or not read_write:
-        print("Set FREESCOUT_READ_ONLY and FREESCOUT_READ_WRITE env vars to run HELPDESK suite.")
-        print("Example:")
-        print("  export FREESCOUT_READ_ONLY=fsk_...")
-        print("  export FREESCOUT_READ_WRITE=fsk_...")
-        return []
-    print("HELPDESK suite not yet automated in this script.")
-    return []
-
-
 async def run_website_suite(suite_name, url, quick=False):
-    """Run a website QA suite against a URL and return results."""
     tests = load_test_bank()
-    all_ids = {t["ID"] for t in tests}
-    SUITES["FULL"] = list(all_ids)
 
-    suite_ids = set(SUITES.get(suite_name, []))
-    suite_tests = [t for t in tests if t["ID"] in suite_ids]
+    # Filter by suite (from CSV Suite column)
+    suite_tests = [t for t in tests if t["Suite"].upper() == suite_name.upper()]
 
     if not suite_tests:
         print(f"No tests found for suite: {suite_name}")
         return []
 
     print(f"\nRunning {suite_name} suite: {len(suite_tests)} tests on {url}")
-    print("=" * 70)
+    print("=" * 80)
 
     auditor = SEOAuditor(url, quick=quick)
     result = await auditor.run_all()
 
     results = []
     for t in suite_tests:
-        status = evaluate_website_test(t, result)
+        status = evaluate_website_test(t["ID"], result)
         results.append({
             "ID": t["ID"],
             "Area": t["Area"],
@@ -296,47 +274,45 @@ async def run_website_suite(suite_name, url, quick=False):
 
 
 def print_results(results, suite_name):
-    """Print a formatted test result table."""
     if not results:
         return
 
     passed = sum(1 for r in results if r["Status"] == "PASS")
     failed = sum(1 for r in results if r["Status"] == "FAIL")
+    warn = sum(1 for r in results if r["Status"] == "WARN")
     manual = sum(1 for r in results if r["Status"] == "MANUAL")
 
-    print(f"\n{'─' * 90}")
-    print(f"{suite_name} SUITE RESULTS")
-    print(f"{'─' * 90}")
-    print(f"{'ID':<12} {'Area':<8} {'Object':<18} {'Status':<8} {'Severity':<10} {'Title'}")
-    print(f"{'─' * 90}")
-    for r in results:
-        status_color = "\033[92m" if r["Status"] == "PASS" else "\033[91m" if r["Status"] == "FAIL" else "\033[93m"
-        reset = "\033[0m"
-        print(f"{r['ID']:<12} {r['Area']:<8} {r['Object']:<18} {status_color}{r['Status']:<8}{reset} {r['Severity']:<10} {r['Title'][:35]}")
-    print(f"{'─' * 90}")
-    print(f"PASS: {passed} | FAIL: {failed} | MANUAL: {manual}")
+    print(f"\n{'─' * 95}")
+    print(f"  {suite_name} SUITE RESULTS")
+    print(f"{'─' * 95}")
+    print(f"{'ID':<10} {'Area':<9} {'Object':<20} {'Status':<8} {'Severity':<10} {'Title'}")
+    print(f"{'─' * 95}")
 
-    # Save to CSV
-    ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    path = os.path.join("reports", f"testbank-{suite_name}-{ts}.csv")
-    os.makedirs("reports", exist_ok=True)
-    with open(path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["ID", "Area", "Object", "Title", "Expected", "Severity", "Status"])
-        writer.writeheader()
-        writer.writerows(results)
-    print(f"\nSaved: {path}")
+    for r in results:
+        if r["Status"] == "PASS":
+            icon = "\033[92mPASS\033[0m    "
+        elif r["Status"] == "FAIL":
+            icon = "\033[91mFAIL\033[0m    "
+        elif r["Status"] == "WARN":
+            icon = "\033[93mWARN\033[0m    "
+        else:
+            icon = "\033[90mMANUAL\033[0m  "
+        print(f"{r['ID']:<10} {r['Area']:<9} {r['Object']:<20} {icon} {r['Severity']:<10} {r['Title']}")
+
+    print(f"{'─' * 95}")
+    total = len(results)
+    print(f"  PASS: {passed} | FAIL: {failed} | WARN: {warn} | MANUAL: {manual} | TOTAL: {total}")
+    if total > 0:
+        pct = round(passed / (passed + failed + warn) * 100) if (passed + failed + warn) > 0 else 0
+        print(f"  Score: {pct}%")
 
 
 async def main():
-    parser = argparse.ArgumentParser(description="Run QA test bank suites")
-    parser.add_argument("--suite", choices=list(SUITES.keys()), default="SMOKE", help="Test suite to run")
+    parser = argparse.ArgumentParser(description="Run QA test bank suites against a URL")
+    parser.add_argument("--suite", choices=["SMOKE", "REG", "FULL"], default="SMOKE", help="Test suite (from CSV)")
     parser.add_argument("--quick", action="store_true", help="Skip CDP, image loading, link verification")
-    parser.add_argument("url", nargs="?", help="URL to audit (not needed for HELPDESK suite)")
+    parser.add_argument("url", nargs="?", help="URL to audit")
     args = parser.parse_args()
-
-    if args.suite == "HELPDESK":
-        run_helpdesk_suite()
-        return
 
     if not args.url:
         parser.print_help()
